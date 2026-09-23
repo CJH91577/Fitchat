@@ -20,7 +20,7 @@
 
 .item {
   display: grid;
-  grid-template-columns: 10px auto 1fr;
+  grid-template-columns: 10px auto 1fr auto;
   align-items: baseline;
   gap: 8px;
 }
@@ -51,7 +51,7 @@
 }
 
 .over {
-  grid-column: 3;
+  grid-column: 2 / 5;
   color: var(--text-secondary);
   font-size: 12px;
 }
