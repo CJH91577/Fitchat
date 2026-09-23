@@ -1,0 +1,57 @@
+.wrap {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.svg {
+  flex: 0 0 auto;
+}
+
+.legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.item {
+  display: grid;
+  grid-template-columns: 10px auto 1fr;
+  align-items: baseline;
+  gap: 8px;
+}
+
+/* 色块承载身份，文字一律走文字令牌——文字绝不穿数据色 */
+.swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.label {
+  color: var(--text-secondary);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.value {
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: right;
+}
+
+.unit {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.over {
+  grid-column: 3;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
