@@ -1,0 +1,65 @@
+.page {
+  padding: 16px 16px 88px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+.title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.card {
+  background: var(--surface-card);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-card);
+  padding: 16px;
+}
+
+.cardTitle {
+  margin: 0 0 10px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--border-hairline);
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+.rowName {
+  flex: 1;
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.rowMeta {
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.link {
+  padding: 13px;
+  text-align: center;
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-tile);
+  color: var(--text-primary);
+  font-size: 14px;
+  text-decoration: none;
+}

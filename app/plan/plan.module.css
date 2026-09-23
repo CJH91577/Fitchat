@@ -1,0 +1,96 @@
+.page {
+  padding: 16px 16px 88px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+.title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.days {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.day {
+  background: var(--surface-card);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-card);
+  padding: 14px 16px;
+}
+
+/* 今天靠左侧竖条与外框标记，不引入新颜色 */
+.today {
+  border-color: var(--axis);
+  box-shadow: inset 3px 0 0 var(--text-primary);
+}
+
+.dayHead {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.weekday {
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.theme {
+  flex: 1;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.todayTag {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.rest {
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.items {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-hairline);
+}
+
+.item:last-child {
+  border-bottom: none;
+}
+
+.itemName {
+  flex: 1;
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.itemMeta {
+  color: var(--text-secondary);
+  font-size: 13px;
+}

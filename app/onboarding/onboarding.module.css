@@ -1,0 +1,94 @@
+.page {
+  padding: 24px 16px 88px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+.title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.subtitle {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.option {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px;
+  text-align: left;
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-card);
+  background: var(--surface-card);
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.selected {
+  border-color: var(--text-primary);
+  box-shadow: inset 0 0 0 1px var(--text-primary);
+}
+
+.optionLabel {
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.optionHint {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.input {
+  padding: 12px;
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-tile);
+  background: var(--surface-card);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.primaryButton {
+  padding: 13px;
+  border: none;
+  border-radius: var(--radius-tile);
+  background: var(--text-primary);
+  color: var(--surface-page);
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primaryButton:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.note {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
