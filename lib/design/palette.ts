@@ -1,0 +1,28 @@
+export const PALETTE = {
+  light: {
+    '--surface-page': '#f9f9f7',
+    '--surface-card': '#fcfcfb',
+    '--text-primary': '#0b0b0b',
+    '--text-secondary': '#52514e',
+    '--text-muted': '#898781',
+    '--gridline': '#e1e0d9',
+    '--axis': '#c3c2b7',
+    '--ring-calories': '#2a78d6',
+    '--ring-exercise': '#eb6834',
+    '--ring-protein': '#1baf7a',
+    '--ring-carbs': '#eda100',
+  },
+  dark: {
+    '--surface-page': '#0d0d0d',
+    '--surface-card': '#1a1a19',
+    '--text-primary': '#ffffff',
+    '--text-secondary': '#c3c2b7',
+    '--text-muted': '#898781',
+    '--gridline': '#2c2c2a',
+    '--axis': '#383835',
+    '--ring-calories': '#3987e5',
+    '--ring-exercise': '#d95926',
+    '--ring-protein': '#199e70',
+    '--ring-carbs': '#c98500',
+  },
+} as const
