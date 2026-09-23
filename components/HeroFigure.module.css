@@ -1,0 +1,29 @@
+.wrap {
+  text-align: center;
+}
+
+.label {
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.row {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 6px;
+}
+
+/* 全页唯一的 hero 数字。系统无衬线，比例数字，不用 tabular-nums */
+.value {
+  color: var(--text-primary);
+  font-size: 56px;
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+
+.unit {
+  color: var(--text-muted);
+  font-size: 16px;
+}
