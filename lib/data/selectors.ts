@@ -29,3 +29,7 @@ export function adherence(day: DayLog, goal: UserGoal): number {
   if (intake <= 0) return 0
   return Math.min(intake / goal.calories, 1)
 }
+
+export function emptyDayLog(date: string): DayLog {
+  return { date, foods: [], exercises: [] }
+}

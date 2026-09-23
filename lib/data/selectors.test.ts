@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { sumMacros, netCalories, adherence, emptyMacros } from './selectors'
+import { sumMacros, netCalories, adherence, emptyMacros, emptyDayLog } from './selectors'
 import type { DayLog, FoodEntry, UserGoal } from './types'
 
 function food(calories: number, protein = 0, carbs = 0, fat = 0): FoodEntry {
@@ -82,5 +82,15 @@ describe('adherence', () => {
 
   it('没有任何记录时为 0', () => {
     expect(adherence({ date: '2026-09-22', foods: [], exercises: [] }, goal)).toBe(0)
+  })
+})
+
+describe('emptyDayLog', () => {
+  it('返回空日志，日期原样保留', () => {
+    expect(emptyDayLog('2026-09-22')).toEqual({
+      date: '2026-09-22',
+      foods: [],
+      exercises: [],
+    })
   })
 })

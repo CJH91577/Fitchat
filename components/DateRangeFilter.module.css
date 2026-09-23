@@ -1,0 +1,34 @@
+/* 全页唯一的筛选行，位于所有图之上 */
+.row {
+  display: flex;
+  gap: 8px;
+}
+
+.button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 9px 0;
+  border: 1px solid var(--border-hairline);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.selected {
+  background: color-mix(in oklab, var(--text-primary) 8%, transparent);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* 16px 加粗对勾，是被选中的非颜色信号 */
+.check {
+  width: 16px;
+  font-size: 12px;
+  font-weight: 700;
+}

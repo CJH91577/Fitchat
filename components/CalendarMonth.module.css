@@ -1,0 +1,83 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.header {
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.weekdays,
+.grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.weekday {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 12px;
+  padding-bottom: 2px;
+}
+
+.cell,
+.emptyCell {
+  aspect-ratio: 1 / 1.15;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+}
+
+.cell {
+  background: color-mix(in oklab, var(--text-primary) 4%, transparent);
+}
+
+.today {
+  outline: 1px solid var(--axis);
+  outline-offset: -1px;
+}
+
+.dayNum {
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1;
+}
+
+.dots {
+  display: flex;
+  gap: 2px;
+}
+
+/* 4px 小点。实心=达成，空心=未达成，形状差异是非颜色通道 */
+.dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  border: 1px solid var(--dot-color, var(--text-muted));
+  background: transparent;
+}
+
+.dotDone {
+  background: var(--dot-color, var(--text-muted));
+}
+
+.legend {
+  display: flex;
+  gap: 14px;
+  margin-top: 2px;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
