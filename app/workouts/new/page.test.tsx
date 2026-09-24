@@ -1,11 +1,15 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import NewWorkout from './page'
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/workouts/new' }))
 
 describe('添加运动页', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
   it('提供有氧与力量两条路径', () => {
     render(<NewWorkout />)
     expect(screen.getByRole('button', { name: '有氧' })).toBeInTheDocument()
@@ -44,5 +48,20 @@ describe('添加运动页', () => {
     // 删组：2 → 1
     await user.click(screen.getByRole('button', { name: '删除第 2 组' }))
     expect(screen.getAllByRole('button', { name: /删除第 \d+ 组/ })).toHaveLength(1)
+  })
+
+  it('同一毫秒内连加两组不会共享 id，删除其一不会误删另一组', async () => {
+    const user = userEvent.setup()
+    vi.spyOn(Date, 'now').mockReturnValue(1234567890123)
+    render(<NewWorkout />)
+
+    // 增组：1 → 3
+    await user.click(screen.getByRole('button', { name: '添加一组' }))
+    await user.click(screen.getByRole('button', { name: '添加一组' }))
+    expect(screen.getAllByRole('button', { name: /删除第 \d+ 组/ })).toHaveLength(3)
+
+    // 删除中间一组：其余两组都应保留，而非连同共享 id 的那组一起消失
+    await user.click(screen.getByRole('button', { name: '删除第 2 组' }))
+    expect(screen.getAllByRole('button', { name: /删除第 \d+ 组/ })).toHaveLength(2)
   })
 })

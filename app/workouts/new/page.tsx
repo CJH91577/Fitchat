@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import styles from './new.module.css'
 
 type Mode = 'cardio' | 'strength'
@@ -12,9 +12,10 @@ export default function NewWorkout() {
   const [sets, setSets] = useState<SetRow[]>([
     { id: 1, weightKg: '60', reps: '10' },
   ])
+  const nextId = useRef(2)
 
   const addSet = () =>
-    setSets((prev) => [...prev, { id: Date.now(), weightKg: '', reps: '' }])
+    setSets((prev) => [...prev, { id: nextId.current++, weightKg: '', reps: '' }])
 
   const removeSet = (id: number) => setSets((prev) => prev.filter((s) => s.id !== id))
 
