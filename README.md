@@ -1,36 +1,20 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Fitchat
 
-## Getting Started
+移动优先的 H5 饮食与健身前端演示，基于 Next.js + React + TypeScript，数据全部来自本地 mock（无后端）。
 
-First, run the development server:
+## 运行
+
+本项目唯一使用 npm 作为包管理器：
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev     # 启动开发服务器 http://localhost:3000
+npm test        # 运行全部测试
+npm run lint    # ESLint 检查
+npm run build   # 生产构建
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 说明
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- 移动优先的单页演示，所有数据为本地 mock。
+- 字体统一使用系统无衬线字体栈。
