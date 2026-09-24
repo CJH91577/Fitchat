@@ -5,7 +5,7 @@ import Login from './page'
 vi.mock('next/navigation', () => ({ usePathname: () => '/login' }))
 
 describe('登录页', () => {
-  it('要求填写邀请码', () => {
+  it('显示邀请码输入框', () => {
     render(<Login />)
     expect(screen.getByPlaceholderText('邀请码')).toBeInTheDocument()
   })

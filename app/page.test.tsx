@@ -18,6 +18,8 @@ describe('首页', () => {
 
   it('展示四个圆环', () => {
     render(<Home />)
+    expect(screen.getByText('热量')).toBeInTheDocument()
+    expect(screen.getByText('运动')).toBeInTheDocument()
     expect(screen.getByText('蛋白质')).toBeInTheDocument()
     expect(screen.getByText('碳水')).toBeInTheDocument()
   })
@@ -45,6 +47,8 @@ describe('首页', () => {
     // 因此必须查样式表本身；查 innerHTML 永远查不到，那是一条恒真的假测试。
     const css = readFileSync(join(process.cwd(), 'app', 'page.module.css'), 'utf8')
     expect(css).not.toContain('#0ca30c')
+    expect(css).not.toContain('#fab219')
+    expect(css).not.toContain('#ec835a')
     expect(css).not.toContain('#d03b3b')
     expect(css).not.toContain('#006300')
   })

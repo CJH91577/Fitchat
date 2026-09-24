@@ -12,7 +12,7 @@ describe('添加运动页', () => {
     expect(screen.getByRole('button', { name: '力量' })).toBeInTheDocument()
   })
 
-  it('力量模式下可增删组', () => {
+  it('力量模式下显示「添加一组」按钮', () => {
     render(<NewWorkout />)
     expect(screen.getByRole('button', { name: '添加一组' })).toBeInTheDocument()
   })
@@ -31,6 +31,10 @@ describe('添加运动页', () => {
     await user.clear(weight)
     await user.type(weight, '80')
     expect(weight).toHaveValue('80')
+
+    await user.clear(reps)
+    await user.type(reps, '12')
+    expect(reps).toHaveValue('12')
 
     // 增组：1 → 2
     expect(screen.getAllByRole('button', { name: /删除第 \d+ 组/ })).toHaveLength(1)

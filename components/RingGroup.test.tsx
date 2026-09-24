@@ -21,6 +21,9 @@ describe('RingGroup', () => {
     expect(screen.getByText('蛋白质')).toBeInTheDocument()
     expect(screen.getByText('碳水')).toBeInTheDocument()
     expect(screen.getByText('1420 / 1800')).toBeInTheDocument()
+    expect(screen.getByText('380 / 500')).toBeInTheDocument()
+    expect(screen.getByText('76 / 120')).toBeInTheDocument()
+    expect(screen.getByText('180 / 220')).toBeInTheDocument()
   })
 
   it('按固定顺序使用四个圆环色令牌', () => {
