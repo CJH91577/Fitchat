@@ -6,15 +6,16 @@
 
 ## 一、怎么打开
 
-在终端里进入项目目录，启动应用：
+项目就是这个仓库本身（`C:\Users\admin\codex_project\Fitchat`）。在终端进入该目录并启动：
 
 ```bash
-cd C:\Users\admin\codex_project\Fitchat-frontend-demo
+cd C:\Users\admin\codex_project\Fitchat
 npm run dev
 ```
 
 等它打印出地址后，在浏览器打开 `http://localhost:3000`。
 
+- 依赖已经装好了（`node_modules` 就在这个目录里）。如果哪天提示找不到依赖，先跑一次 `npm install`。
 - 如果它提示端口被占用（"port 3000 is already in use"），说明已经有一个在跑了，直接打开 `http://localhost:3000` 即可，不用重复启动。
 - 浏览器里模拟手机：按 `F12` 打开开发者工具，点左上角「手机/平板」图标（Toggle device toolbar），把尺寸设为 iPhone 尺寸（390×844，或直接选一个 iPhone 机型）。
 - 用真手机看（推荐，这是手机优先的产品）：让手机和电脑连同一个 Wi-Fi，启动 `npm run dev -- --hostname 0.0.0.0`，在电脑上运行 `ipconfig`，找到「无线局域网适配器 WLAN」里的 IPv4 地址（形如 `192.168.x.x`），在手机浏览器打开 `http://<那个IP>:3000`。注意：这会把服务暴露给同一局域网内的其他设备，用完记得停掉服务。
