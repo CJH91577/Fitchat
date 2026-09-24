@@ -36,7 +36,7 @@
 .tableToggle {
   background: none;
   border: none;
-  padding: 0;
+  padding: 15px 4px;
   color: var(--text-muted);
   font-family: inherit;
   font-size: 12px;
