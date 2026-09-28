@@ -4,26 +4,23 @@
 
 .label {
   color: var(--text-secondary);
-  font-size: 14px;
+  font-size: 12px;
+  line-height: 1.2;
 }
 
-.row {
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
-  gap: 6px;
-}
-
-/* 全页唯一的 hero 数字。系统无衬线，比例数字，不用 tabular-nums */
+/* 圆心的这个数字是全页最大的一处，但它的字号被圆心空腔的宽度卡死：
+   RingGroup.test.tsx 会核验「空腔直径 > 四位数在本字号下的宽度」。
+   调大它之前必须先扩大空腔，否则数字会压到内环上。 */
 .value {
   color: var(--text-primary);
-  font-size: 56px;
+  font-size: 36px;
   font-weight: 600;
-  line-height: 1.05;
+  line-height: 1.1;
   letter-spacing: -0.02em;
 }
 
 .unit {
   color: var(--text-muted);
-  font-size: 16px;
+  font-size: 12px;
+  line-height: 1.2;
 }

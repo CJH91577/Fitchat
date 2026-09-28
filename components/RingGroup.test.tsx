@@ -1,4 +1,6 @@
 import { render, screen } from '@testing-library/react'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, it, expect } from 'vitest'
 import RingGroup, { type RingSpec } from './RingGroup'
 
@@ -127,5 +129,47 @@ describe('圆心插槽', () => {
     const { container } = render(<RingGroup rings={zeroGoal} center={<span>0</span>} />)
     expect(container.innerHTML).not.toContain('NaN')
     expect(screen.getByText('0')).toBeInTheDocument()
+  })
+})
+
+describe('圆心必须容得下净热量', () => {
+  // 这个环境没有布局引擎，「圆心内容有没有压到环上」无法直接测。
+  // 但那条要求可以化简成一条算术不变式：圆心空腔的直径必须大于一个
+  // 四位数在该字号下的宽度。
+  //
+  // 字宽系数取 0.6em——比系统无衬线数字的实际字宽（约 0.52~0.55em）
+  // 更保守，因此用它通过的不变式在真实渲染中也成立。
+  //
+  // 实测过：STROKE=11、MIN_INNER_RADIUS=34、字号=56px 时，空腔 57px
+  // 而四位数需 134px——数字会横跨内环、穿过 2px 间隙、压到外环上。
+  function readNumber(source: string, pattern: RegExp, label: string): number {
+    const match = pattern.exec(source)
+    if (!match) throw new Error(`没能从源码里读到 ${label}`)
+    return Number(match[1])
+  }
+
+  const ringSrc = readFileSync(join(process.cwd(), 'components', 'RingGroup.tsx'), 'utf8')
+  const stroke = readNumber(ringSrc, /const STROKE = (\d+(?:\.\d+)?)/, 'STROKE')
+  const innerRadius = readNumber(
+    ringSrc,
+    /const MIN_INNER_RADIUS = (\d+(?:\.\d+)?)/,
+    'MIN_INNER_RADIUS',
+  )
+  const holeDiameter = 2 * (innerRadius - stroke / 2)
+
+  const heroCss = readFileSync(join(process.cwd(), 'components', 'HeroFigure.module.css'), 'utf8')
+  const valueBlock = /\.value\s*\{[^}]*\}/.exec(heroCss)
+  if (!valueBlock) throw new Error('没能从 HeroFigure.module.css 里读到 .value 规则')
+  const heroFontSize = readNumber(valueBlock[0], /font-size:\s*(\d+(?:\.\d+)?)px/, '字号')
+
+  it('空腔直径大于一个四位数在该字号下的宽度', () => {
+    const widestRealisticValue = 4 * 0.6 * heroFontSize
+    expect(holeDiameter).toBeGreaterThan(widestRealisticValue)
+  })
+
+  it('空腔直径也大于「标签 + 数字 + 单位」叠放所需的高度', () => {
+    // 三行叠放：标签 12px、数字、单位 12px，行高按 1.1 与 1.2 估
+    const stackedHeight = 12 * 1.2 + heroFontSize * 1.1 + 12 * 1.2
+    expect(holeDiameter).toBeGreaterThan(stackedHeight)
   })
 })

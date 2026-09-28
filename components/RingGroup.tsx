@@ -20,12 +20,17 @@ const COLOR_VAR: Record<RingKind, string> = {
 
 const SIZE = 176
 const CENTER = SIZE / 2
-const STROKE = 11
+const STROKE = 8
 const GAP = 2
 
 // 环数变少时半径向外铺开，使环填满圆面、圆心留出可放净热量的空间。
+// MIN_INNER_RADIUS 不是随便取的：圆心空腔直径 = 2×(MIN_INNER_RADIUS − STROKE/2)，
+// 它必须容得下四位数在最坏情况下的宽度。改这三个常量前先看
+// RingGroup.test.tsx 里「圆心必须容得下净热量」那组断言——
+// 实测过 STROKE=11 / MIN_INNER_RADIUS=34 时空腔只有 57px，而 56px 的
+// 「1563」需要 134px，数字会横跨两个环。
 const MAX_OUTER_RADIUS = 72
-const MIN_INNER_RADIUS = 34
+const MIN_INNER_RADIUS = 50
 
 export function formatValue(v: number): string {
   return Number.isInteger(v) ? String(v) : v.toFixed(1)
