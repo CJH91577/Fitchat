@@ -1,0 +1,45 @@
+.scroll {
+  max-height: 320px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.table th {
+  position: sticky;
+  top: 0;
+  background: var(--surface-card);
+  text-align: left;
+  color: var(--text-muted);
+  font-weight: 500;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-hairline);
+}
+
+.table td {
+  padding: 9px 0;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-hairline);
+}
+
+.num {
+  text-align: right;
+}
+
+/* 涨跌为中性色——增肌期上涨正是目标 */
+.delta {
+  color: var(--text-secondary);
+}
+
+.empty {
+  margin: 0;
+  padding: 24px 0;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 14px;
+}
