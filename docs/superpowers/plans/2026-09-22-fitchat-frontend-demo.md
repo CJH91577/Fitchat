@@ -1,3 +1,11 @@
+> ⚠️ **这份计划已被取代，不要照着它实现。**
+>
+> 它描述的是本轮修订**之前**的形态——四个圆环（含蛋白质、碳水）、趋势页的两张图表、7/30/90 天筛选、`DateRangeFilter` / `WeightChart` / `AdherenceChart` 三个组件、以及 `selectors.adherence`。这些在本轮修订中**全部被移除或改写**。
+>
+> 当前有效的计划是 `docs/superpowers/plans/2026-09-28-fitchat-shape-revision.md`，产品设计以 `docs/superpowers/specs/2026-09-22-fitchat-mvp-design.md`（含 2026-09-28 修订记录）为准。
+>
+> 本文件保留为**历史记录**——它记录了当时的设计与实施过程，正文不再维护。
+
 # Fitchat 前端 Demo 实施计划
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.

@@ -90,9 +90,14 @@ export function generateDayLog(date: string, goal: UserGoal): DayLog {
   // 把当天的模板合计缩放到目标热量附近，再叠加每餐波动（0.8~1.2）。
   // 这样「摄入围绕目标浮动」是相对**用户自己的目标**成立的真实属性；
   // 若不做这层缩放，它只在一个恰好等于模板合计的目标下才碰巧成立。
+  //
+  // 浮动区间随目标方向偏移：减脂与维持的日子多数略低于目标，增肌的日子
+  // 多数略高于目标。否则盈余的正负分布会与该用户的计划相矛盾——例如一个
+  // 减脂用户有六成天数超标。
   const templateSum = meals.reduce((sum, m) => sum + m.template.calories, 0)
+  const [lo, hi] = goal.direction === 'bulk' ? [0.95, 1.15] : [0.8, 1.0]
   const dayTarget =
-    goal.calories > 0 ? goal.calories * (0.8 + seededUnit(date, 1) * 0.4) : templateSum
+    goal.calories > 0 ? goal.calories * (lo + seededUnit(date, 1) * (hi - lo)) : templateSum
   const dayFactor = templateSum > 0 ? dayTarget / templateSum : 1
 
   const foods: FoodEntry[] = meals.map((meal, i) =>
