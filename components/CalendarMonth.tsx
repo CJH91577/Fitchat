@@ -3,7 +3,11 @@ import styles from './CalendarMonth.module.css'
 
 const WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日']
 
-export type DayStatus = { calories: boolean; exercise: boolean }
+/**
+ * 一天的两种状态之外还有第三种：这一天还没开始使用。
+ * 它不是「达成」也不是「未达成」，界面必须能与后两者区分开。
+ */
+export type DayStatus = { calories: boolean; exercise: boolean; notStarted?: boolean }
 
 export type CalendarMonthProps = {
   year: number
@@ -44,6 +48,21 @@ export default function CalendarMonth({
           const isToday = date === today
           const status = statusByDate[date] ?? { calories: false, exercise: false }
           const flags = [status.calories, status.exercise]
+
+          // 尚未开始使用：不可点（点进去只会看到一句空话），也不画状态点
+          // （画了就与「当天未达成」长得一样）。
+          if (status.notStarted) {
+            return (
+              <div
+                key={date}
+                className={`${styles.cell} ${styles.notStarted}`}
+                data-testid="not-started-cell"
+                aria-label={`${date}，尚未开始使用`}
+              >
+                <span className={`${styles.dayNum} num-tabular`}>{dayNum}</span>
+              </div>
+            )
+          }
 
           return (
             <Link
@@ -90,6 +109,7 @@ export default function CalendarMonth({
           未达成
         </span>
         <span className={styles.legendItem}>左点 = 热量 · 右点 = 运动</span>
+        <span className={styles.legendItem}>尚未开始使用</span>
       </div>
     </div>
   )

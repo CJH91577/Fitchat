@@ -1,4 +1,6 @@
 import { render, screen } from '@testing-library/react'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, it, expect } from 'vitest'
 import WeightTable from './WeightTable'
 
@@ -39,5 +41,16 @@ describe('WeightTable', () => {
   it('表格容器可滚动（固定高度）', () => {
     render(<WeightTable rows={rows} />)
     expect(screen.getByTestId('weight-table-scroll')).toBeInTheDocument()
+  })
+
+  it('涨跌的样式不含成功或危险状态色', () => {
+    // 「体重方向不做好坏着色」这条规则在本项目有三处消费者：首页体重卡、
+    // 盈余表、以及这张体重表。前两处各有断言，这里补上第三处——否则
+    // 唯独这张表可以在不被察觉的情况下引入绿/红。
+    const css = readFileSync(join(process.cwd(), 'components', 'WeightTable.module.css'), 'utf8')
+    expect(css).not.toContain('#0ca30c')
+    expect(css).not.toContain('#fab219')
+    expect(css).not.toContain('#ec835a')
+    expect(css).not.toContain('#d03b3b')
   })
 })

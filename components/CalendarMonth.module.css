@@ -50,6 +50,17 @@ a.cell {
   outline-offset: -1px;
 }
 
+/* 尚未开始使用：连普通格子那层淡底都不给，数字也压暗。
+   目的是与「当天未达成」形成一眼可辨的差别——后者有底色、有两个空心点。 */
+.notStarted {
+  background: transparent;
+}
+
+.notStarted .dayNum {
+  color: var(--text-muted);
+  opacity: 0.45;
+}
+
 .dayNum {
   color: var(--text-secondary);
   font-size: 11px;

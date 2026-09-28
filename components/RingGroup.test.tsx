@@ -70,6 +70,20 @@ describe('RingGroup', () => {
     const circumference = Number(arc.getAttribute('stroke-dasharray'))
     expect(offset).toBeCloseTo(circumference, 5)
   })
+
+  it('数值恰好等于目标时画成完整一圈，且不产生 NaN', () => {
+    // 这是圆环边界的第四种情况。它曾经只靠实机走查覆盖——而「满环时圆头
+    // 线帽在 12 点重叠可能凸出一个小点」正需要这一态才看得到，所以它值得
+    // 被单元测试钉住，而不只是靠人眼。
+    const exact: RingSpec[] = [
+      { kind: 'calories', label: '热量', value: 1800, goal: 1800, unit: '千卡' },
+    ]
+    const { container } = render(<RingGroup rings={exact} />)
+    expect(container.innerHTML).not.toContain('NaN')
+    const arc = svgOf().querySelector('[data-ring-fill]')!
+    // 恰好满环：位移为 0，即整圈都填满
+    expect(Number(arc.getAttribute('stroke-dashoffset'))).toBe(0)
+  })
 })
 
 describe('圆心插槽', () => {

@@ -4,24 +4,28 @@ import { useState } from 'react'
 import CalendarMonth, { type DayStatus } from '@/components/CalendarMonth'
 import { monthGrid } from '@/lib/data/dates'
 import { MOCK_GOAL, MOCK_USER, TODAY, dayLogFor } from '@/lib/data/mock'
-import { hasRecord, isCalorieOnTarget, isExerciseOnTarget } from '@/lib/data/selectors'
+import { isCalorieOnTarget, isExerciseOnTarget, isInRange } from '@/lib/data/selectors'
 import styles from './calendar.module.css'
 
 export default function Calendar({
-  initialYear = 2026,
-  initialMonth = 9,
+  initialYear,
+  initialMonth,
 }: {
   initialYear?: number
   initialMonth?: number
 }) {
-  const [year, setYear] = useState(initialYear)
-  const [month, setMonth] = useState(initialMonth)
+  // 默认落在「今天」所在的月份。默认值由 TODAY 推导而不是写死 2026/9——
+  // 写死的话，一旦 TODAY 变了，这里会与首页和月历高亮各说各话。
+  const todayYear = Number(TODAY.slice(0, 4))
+  const todayMonth = Number(TODAY.slice(5, 7))
+  const [year, setYear] = useState(initialYear ?? todayYear)
+  const [month, setMonth] = useState(initialMonth ?? todayMonth)
 
   const cells = monthGrid(year, month)
 
   // 该月是否整体早于用户的开始使用日期
   const lastCell = [...cells].reverse().find((c) => c !== null) ?? null
-  const monthIsOutOfRange = lastCell !== null && !hasRecord(lastCell, MOCK_USER.startedAt)
+  const monthIsOutOfRange = lastCell !== null && !isInRange(lastCell, MOCK_USER.startedAt)
 
   const statusByDate: Record<string, DayStatus> = {}
   for (const date of cells) {
@@ -29,7 +33,7 @@ export default function Calendar({
     const day = dayLogFor(date)
     statusByDate[date] =
       day === null
-        ? { calories: false, exercise: false }
+        ? { calories: false, exercise: false, notStarted: true }
         : {
             calories: isCalorieOnTarget(day, MOCK_GOAL),
             exercise: isExerciseOnTarget(day, MOCK_GOAL),

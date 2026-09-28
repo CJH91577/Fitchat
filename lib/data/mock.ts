@@ -1,6 +1,6 @@
 import { addDays, daysBetween } from './dates'
 import { generateDayLog, generateWeight } from './generator'
-import { hasRecord } from './selectors'
+import { isInRange } from './selectors'
 import type { DayLog, PlanDay, UserGoal, WeightEntry } from './types'
 
 export const TODAY = '2026-09-22'
@@ -69,12 +69,12 @@ export const MOCK_PLAN: PlanDay[] = [
 // 早于开始使用日期返回 null（该用户当时还没开始用），
 // 与「在范围内但当天没有任何活动」是两种不同状态。
 export function dayLogFor(date: string): DayLog | null {
-  if (!hasRecord(date, MOCK_USER.startedAt)) return null
+  if (!isInRange(date, MOCK_USER.startedAt)) return null
   return generateDayLog(date, MOCK_GOAL)
 }
 
 export function weightFor(date: string): number | null {
-  if (!hasRecord(date, MOCK_USER.startedAt)) return null
+  if (!isInRange(date, MOCK_USER.startedAt)) return null
   return generateWeight(date, MOCK_USER.startedAt, MOCK_USER.startWeightKg, MOCK_GOAL.targetWeightKg)
 }
 
@@ -91,7 +91,7 @@ export function datesWithRecords(fromKey: string, toKey: string): string[] {
   const span = daysBetween(fromKey, toKey)
   if (span < 0) return []
   const all = Array.from({ length: span + 1 }, (_, i) => addDays(fromKey, i))
-  return all.filter((date) => hasRecord(date, MOCK_USER.startedAt))
+  return all.filter((date) => isInRange(date, MOCK_USER.startedAt))
 }
 
 /** 最近 n 天的体重序列（含今天），供首页与测试使用 */

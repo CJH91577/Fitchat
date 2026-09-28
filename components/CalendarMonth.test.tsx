@@ -103,4 +103,34 @@ describe('CalendarMonth', () => {
     )
     expect(screen.getByText(/左点.*热量.*右点.*运动/)).toBeInTheDocument()
   })
+
+  it('尚未开始使用的日期渲染为不可点的淡化格，而不是链接', () => {
+    render(
+      <CalendarMonth
+        year={2025}
+        month={9}
+        cells={['2025-09-01']}
+        statusByDate={{ '2025-09-01': { calories: false, exercise: false, notStarted: true } }}
+        today="2026-09-22"
+      />,
+    )
+    // 与「当天未达成」的关键区别有两点：一是不可点（点进去只会看到一句
+    // 「这一天你还没有开始使用」），二是不画那两个状态点，否则会与「达成失败」混淆。
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
+    const cell = screen.getByTestId('not-started-cell')
+    expect(cell.querySelectorAll('[data-ring]')).toHaveLength(0)
+  })
+
+  it('图例里说明了「尚未开始使用」这一状态', () => {
+    render(
+      <CalendarMonth
+        year={2025}
+        month={9}
+        cells={['2025-09-01']}
+        statusByDate={{ '2025-09-01': { calories: false, exercise: false, notStarted: true } }}
+        today="2026-09-22"
+      />,
+    )
+    expect(screen.getByText(/尚未开始/)).toBeInTheDocument()
+  })
 })

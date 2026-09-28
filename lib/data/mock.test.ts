@@ -10,7 +10,7 @@ import {
   datesWithRecords,
   recentWeights,
 } from './mock'
-import { calorieSurplus, hasRecord } from './selectors'
+import { calorieSurplus, isInRange } from './selectors'
 
 describe('使用范围', () => {
   it('开始使用日期早于今天', () => {
@@ -27,9 +27,9 @@ describe('使用范围', () => {
     expect(weightFor('2025-09-22')).not.toBeNull()
   })
 
-  it('hasRecord 与 dayLogFor 的判定一致', () => {
+  it('isInRange 与 dayLogFor 的判定一致', () => {
     for (const date of ['2025-09-21', '2025-09-22', '2026-09-22']) {
-      expect(dayLogFor(date) === null).toBe(!hasRecord(date, MOCK_USER.startedAt))
+      expect(dayLogFor(date) === null).toBe(!isInRange(date, MOCK_USER.startedAt))
     }
   })
 })

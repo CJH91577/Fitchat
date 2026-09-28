@@ -23,10 +23,6 @@ export function netCalories(day: DayLog): number {
   return sumMacros(day.foods).calories - burnedCalories(day)
 }
 
-export function emptyDayLog(date: string): DayLog {
-  return { date, foods: [], exercises: [] }
-}
-
 // 热量盈余 = 摄入 − 每日目标。正数为超出目标，负数为低于目标。
 // 注意与「净热量」区分：净热量是 摄入 − 运动消耗，不减目标。
 export function calorieSurplus(day: DayLog, goal: UserGoal): number {
@@ -47,8 +43,9 @@ export function isExerciseOnTarget(day: DayLog, goal: UserGoal): boolean {
   return burnedCalories(day) >= goal.exerciseCalories
 }
 
-// 该日期是否在用户的使用范围内。早于开始使用日期 = 该用户当时还没开始用，
-// 这与「当天没有记录任何活动」是两种不同状态，界面必须能区分。
-export function hasRecord(date: string, startedAt: string): boolean {
+// 该日期是否落在用户的使用范围内（即不早于开始使用日期）。
+// 名字刻意不叫 hasRecord——「在范围内」不等于「那天有记录」：
+// 范围内完全可能一天什么都没记，那是另一种状态，界面需要区别对待。
+export function isInRange(date: string, startedAt: string): boolean {
   return daysBetween(startedAt, date) >= 0
 }

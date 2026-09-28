@@ -20,8 +20,10 @@ describe('某日详情页', () => {
     // 「运动」同时是本页一个区块的标题，因此会出现两处，需用 getAllByText。
     expect(screen.getByText('热量')).toBeInTheDocument()
     expect(screen.getAllByText('运动').length).toBeGreaterThan(0)
-    // 图例中恰好有两个「数值 / 目标」——这才是「两个圆环」的真正证据
-    expect(screen.getAllByText(/\d+ \/ \d+/)).toHaveLength(2)
+    // 图例中恰好有两个「数值 / 目标」——这才是「两个圆环」的真正证据。
+    // 字符类含小数点：当前生成器产出的都是整数，但断言不该假定这一点，
+    // 否则将来出现小数（如蛋白 76.5）会静默失配。
+    expect(screen.getAllByText(/[\d.]+ \/ [\d.]+/)).toHaveLength(2)
   })
 
   it('只读：不提供任何记录入口', async () => {

@@ -3,11 +3,10 @@ import {
   sumMacros,
   netCalories,
   emptyMacros,
-  emptyDayLog,
   calorieSurplus,
   isCalorieOnTarget,
   isExerciseOnTarget,
-  hasRecord,
+  isInRange,
 } from './selectors'
 import type { DayLog, FoodEntry, UserGoal } from './types'
 
@@ -69,16 +68,6 @@ describe('netCalories', () => {
 
   it('无记录时为 0', () => {
     expect(netCalories({ date: '2026-09-22', foods: [], exercises: [] })).toBe(0)
-  })
-})
-
-describe('emptyDayLog', () => {
-  it('返回空日志，日期原样保留', () => {
-    expect(emptyDayLog('2026-09-22')).toEqual({
-      date: '2026-09-22',
-      foods: [],
-      exercises: [],
-    })
   })
 })
 
@@ -181,13 +170,13 @@ describe('isExerciseOnTarget', () => {
   })
 })
 
-describe('hasRecord', () => {
+describe('isInRange', () => {
   it('早于开始使用日期为 false', () => {
-    expect(hasRecord('2025-09-21', '2025-09-22')).toBe(false)
+    expect(isInRange('2025-09-21', '2025-09-22')).toBe(false)
   })
 
   it('开始使用当天及以后为 true', () => {
-    expect(hasRecord('2025-09-22', '2025-09-22')).toBe(true)
-    expect(hasRecord('2026-09-22', '2025-09-22')).toBe(true)
+    expect(isInRange('2025-09-22', '2025-09-22')).toBe(true)
+    expect(isInRange('2026-09-22', '2025-09-22')).toBe(true)
   })
 })
