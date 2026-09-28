@@ -39,6 +39,12 @@
   background: color-mix(in oklab, var(--text-primary) 4%, transparent);
 }
 
+/* 日期格同时是导航链接，需抹掉浏览器默认的链接样式 */
+a.cell {
+  text-decoration: none;
+  color: inherit;
+}
+
 .today {
   outline: 1px solid var(--axis);
   outline-offset: -1px;

@@ -1,23 +1,25 @@
+import Link from 'next/link'
 import styles from './CalendarMonth.module.css'
 
 const WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日']
+
+export type DayStatus = { calories: boolean; exercise: boolean }
 
 export type CalendarMonthProps = {
   year: number
   month: number
   cells: (string | null)[]
-  /** 每个日期对应四个环的达标情况，顺序固定：热量、运动、蛋白质、碳水 */
-  ratiosByDate: Record<string, number[]>
+  statusByDate: Record<string, DayStatus>
   today: string
 }
 
-const RING_ORDER = ['热量', '运动', '蛋白质', '碳水'] as const
+const DAY_LABEL = ['热量', '运动'] as const
 
 export default function CalendarMonth({
   year,
   month,
   cells,
-  ratiosByDate,
+  statusByDate,
   today,
 }: CalendarMonthProps) {
   return (
@@ -39,50 +41,55 @@ export default function CalendarMonth({
           if (!date) return <div key={`empty-${i}`} className={styles.emptyCell} />
 
           const dayNum = Number(date.slice(-2))
-          const ratios = ratiosByDate[date] ?? [0, 0, 0, 0]
           const isToday = date === today
+          const status = statusByDate[date] ?? { calories: false, exercise: false }
+          const flags = [status.calories, status.exercise]
 
           return (
-            <div key={date} className={`${styles.cell} ${isToday ? styles.today : ''}`}>
+            <Link
+              key={date}
+              href={`/day/${date}`}
+              className={`${styles.cell} ${isToday ? styles.today : ''}`}
+              aria-label={`${date}，热量${flags[0] ? '达成' : '未达成'}，运动${flags[1] ? '达成' : '未达成'}`}
+            >
               <span className={`${styles.dayNum} num-tabular`}>{dayNum}</span>
               <span className={styles.dots}>
-                {RING_ORDER.map((name, ringIndex) => {
-                  // 实心 / 空心 是非颜色的第二通道；位置顺序固定，颜色只作强化
-                  const done = (ratios[ringIndex] ?? 0) >= 1
-                  return (
-                    <span
-                      key={name}
-                      data-ring={name}
-                      title={`${name}：${done ? '达成' : '未达成'}`}
-                      className={`${styles.dot} ${done ? styles.dotDone : ''}`}
-                      style={
-                        {
-                          '--dot-color': [
-                            'var(--ring-calories)',
-                            'var(--ring-exercise)',
-                            'var(--ring-protein)',
-                            'var(--ring-carbs)',
-                          ][ringIndex],
-                        } as React.CSSProperties
-                      }
-                    />
-                  )
-                })}
+                {DAY_LABEL.map((label, index) => (
+                  // 实心 / 空心 是不依赖颜色的第二通道；位置顺序固定，颜色只作强化
+                  <span
+                    key={label}
+                    data-ring={label}
+                    className={`${styles.dot} ${flags[index] ? styles.dotDone : ''}`}
+                    style={
+                      {
+                        '--dot-color':
+                          index === 0 ? 'var(--ring-calories)' : 'var(--ring-exercise)',
+                      } as React.CSSProperties
+                    }
+                  />
+                ))}
               </span>
-            </div>
+            </Link>
           )
         })}
       </div>
 
       <div className={styles.legend}>
         <span className={styles.legendItem}>
-          <span className={`${styles.dot} ${styles.dotDone}`} style={{ '--dot-color': 'var(--text-primary)' } as React.CSSProperties} />
+          <span
+            className={`${styles.dot} ${styles.dotDone}`}
+            style={{ '--dot-color': 'var(--text-primary)' } as React.CSSProperties}
+          />
           达成
         </span>
         <span className={styles.legendItem}>
-          <span className={styles.dot} style={{ '--dot-color': 'var(--text-primary)' } as React.CSSProperties} />
+          <span
+            className={styles.dot}
+            style={{ '--dot-color': 'var(--text-primary)' } as React.CSSProperties}
+          />
           未达成
         </span>
+        <span className={styles.legendItem}>左点 = 热量 · 右点 = 运动</span>
       </div>
     </div>
   )

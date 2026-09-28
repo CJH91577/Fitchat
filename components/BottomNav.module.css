@@ -4,7 +4,7 @@
   left: 0;
   right: 0;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   background: var(--surface-card);
   border-top: 1px solid var(--border-hairline);
   padding-bottom: env(safe-area-inset-bottom);
@@ -21,10 +21,4 @@
 .active {
   color: var(--text-primary);
   font-weight: 600;
-}
-
-.primary {
-  color: var(--text-primary);
-  font-size: 20px;
-  line-height: 1;
 }
