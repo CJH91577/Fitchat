@@ -1,7 +1,7 @@
 import HeroFigure from '@/components/HeroFigure'
 import RingGroup, { type RingSpec } from '@/components/RingGroup'
 import AiBadge from '@/components/AiBadge'
-import { MOCK_PLAN, MOCK_GOAL, TODAY, dayLogFor, recentWeights } from '@/lib/data/mock'
+import { MOCK_PLAN, MOCK_GOAL, TODAY, dayLogFor, weightFor, recentWeights } from '@/lib/data/mock'
 import { burnedCalories, netCalories, sumMacros } from '@/lib/data/selectors'
 import { MEAL_SLOT_LABEL, type MealSlot } from '@/lib/data/types'
 import { weekdayOf } from '@/lib/data/dates'
@@ -29,15 +29,17 @@ export default function Home() {
   const rings: RingSpec[] = [
     { kind: 'calories', label: '热量', value: macros.calories, goal: MOCK_GOAL.calories, unit: '千卡' },
     { kind: 'exercise', label: '运动', value: burned, goal: MOCK_GOAL.exerciseCalories, unit: '千卡' },
-    { kind: 'protein', label: '蛋白质', value: macros.protein, goal: MOCK_GOAL.protein, unit: 'g' },
-    { kind: 'carbs', label: '碳水', value: macros.carbs, goal: MOCK_GOAL.carbs, unit: 'g' },
   ]
 
-  const todayPlan = MOCK_PLAN.find((p) => p.weekday === weekdayOf(TODAY))
   const weights = recentWeights(2)
-  const latestWeight = weights[weights.length - 1]
-  const prevWeight = weights[weights.length - 2]
-  const delta = latestWeight && prevWeight ? Number((latestWeight.kg - prevWeight.kg).toFixed(1)) : 0
+  const todayWeight = weightFor(TODAY)
+  const prevWeight = weights.length >= 2 ? weights[weights.length - 2].kg : null
+  const delta =
+    todayWeight !== null && prevWeight !== null
+      ? Math.round((todayWeight - prevWeight) * 10) / 10
+      : null
+
+  const todayPlan = MOCK_PLAN.find((p) => p.weekday === weekdayOf(TODAY))
 
   const slotCalories = (slot: MealSlot) =>
     day.foods.filter((f) => f.slot === slot).reduce((s, f) => s + f.totals.calories, 0)
@@ -49,10 +51,10 @@ export default function Home() {
       </header>
 
       <section className={styles.card}>
-        <RingGroup rings={rings} />
-        <div className={styles.netSection}>
-          <HeroFigure label="净热量" value={String(net)} unit="千卡" />
-        </div>
+        <RingGroup
+          rings={rings}
+          center={<HeroFigure label="净热量" value={String(net)} unit="千卡" />}
+        />
       </section>
 
       {todayPlan && (
@@ -123,19 +125,33 @@ export default function Home() {
 
       <section className={styles.card}>
         <div className={styles.cardHead}>
-          <h2 className={styles.cardTitle}>最近体重</h2>
+          <h2 className={styles.cardTitle}>今日空腹体重</h2>
         </div>
-        {latestWeight ? (
+        {todayWeight !== null ? (
           <p className={styles.weight}>
-            <span className={`${styles.weightValue} num`}>{latestWeight.kg} kg</span>
+            <span className={`${styles.weightValue} num`}>{todayWeight} kg</span>
             {/* 涨跌只显示方向与数值，不使用成功/危险色 */}
             <span className={`${styles.weightDelta} num-tabular`}>
-              {delta > 0 ? `↑${delta}` : delta < 0 ? `↓${Math.abs(delta)}` : '持平'}
+              {delta === null
+                ? '—'
+                : delta > 0
+                  ? `↑${delta}`
+                  : delta < 0
+                    ? `↓${Math.abs(delta)}`
+                    : '持平'}
             </span>
           </p>
         ) : (
-          <p className={styles.empty}>还没有体重记录。</p>
+          <p className={styles.empty}>
+            今日未记录
+            {weights.length > 0 && (
+              <span className={styles.lastWeight}>
+                （最近一次 {weights[weights.length - 1].kg} kg · {weights[weights.length - 1].date}）
+              </span>
+            )}
+          </p>
         )}
+        <p className={styles.hint}>建议起床后、进食前测量</p>
       </section>
     </main>
   )
