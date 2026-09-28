@@ -4,8 +4,24 @@
   gap: 16px;
 }
 
-.svg {
+/* 圆心内容以绝对定位叠在 SVG 中心，因此需要一层相对定位的包裹，
+   PITCH 不参与 flex 排布，避免圆心内容挤动图例 */
+.svgWrap {
+  position: relative;
   flex: 0 0 auto;
+}
+
+.svg {
+  display: block;
+}
+
+.center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
 }
 
 .legend {
