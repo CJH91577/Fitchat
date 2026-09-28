@@ -6,9 +6,18 @@ import WeightChart from '@/components/WeightChart'
 import AdherenceChart from '@/components/AdherenceChart'
 import CalendarMonth from '@/components/CalendarMonth'
 import { lastNDays, monthGrid } from '@/lib/data/dates'
-import { MOCK_DAYS, MOCK_GOAL, MOCK_WEIGHTS, TODAY } from '@/lib/data/mock'
-import { adherence, burnedCalories, emptyDayLog, sumMacros } from '@/lib/data/selectors'
+import { MOCK_GOAL, TODAY, dayLogFor, weightFor } from '@/lib/data/mock'
+import { burnedCalories, emptyDayLog, sumMacros } from '@/lib/data/selectors'
+import type { DayLog, UserGoal } from '@/lib/data/types'
 import styles from './trends.module.css'
+
+// 过渡期临时函数：本文件在任务 4 会被整体重写为两张表格。
+function adherenceRatio(day: DayLog, goal: UserGoal): number {
+  if (goal.calories <= 0) return 0
+  const intake = sumMacros(day.foods).calories
+  if (intake <= 0) return 0
+  return Math.min(intake / goal.calories, 1)
+}
 
 export default function Trends() {
   const [range, setRange] = useState<RangeKey>(30)
@@ -16,7 +25,7 @@ export default function Trends() {
   const days = useMemo(() => lastNDays(TODAY, range), [range])
 
   const weightPoints = useMemo(
-    () => MOCK_WEIGHTS.filter((w) => days.includes(w.date)).map((w) => ({ date: w.date, kg: w.kg })),
+    () => days.map((date) => ({ date, kg: weightFor(date) ?? 0 })),
     [days],
   )
 
@@ -24,7 +33,7 @@ export default function Trends() {
     () =>
       days.map((date) => ({
         date,
-        ratio: adherence(MOCK_DAYS[date] ?? emptyDayLog(date), MOCK_GOAL),
+        ratio: adherenceRatio(dayLogFor(date) ?? emptyDayLog(date), MOCK_GOAL),
       })),
     [days],
   )
@@ -36,7 +45,7 @@ export default function Trends() {
     const out: Record<string, number[]> = {}
     for (const date of cells) {
       if (!date) continue
-      const day = MOCK_DAYS[date] ?? emptyDayLog(date)
+      const day = dayLogFor(date) ?? emptyDayLog(date)
       const macros = sumMacros(day.foods)
       out[date] = [
         MOCK_GOAL.calories > 0 ? Math.min(macros.calories / MOCK_GOAL.calories, 1) : 0,

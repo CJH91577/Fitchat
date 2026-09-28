@@ -42,3 +42,13 @@ export function monthGrid(year: number, month: number): (string | null)[] {
 
   return cells
 }
+
+// 以本地时区的当日零点计算整日差，避免夏令时导致的 23/25 小时误差
+export function daysBetween(fromKey: string, toKey: string): number {
+  const a = parseKey(fromKey)
+  const b = parseKey(toKey)
+  a.setHours(0, 0, 0, 0)
+  b.setHours(0, 0, 0, 0)
+  const MS_PER_DAY = 24 * 60 * 60 * 1000
+  return Math.round((b.getTime() - a.getTime()) / MS_PER_DAY)
+}

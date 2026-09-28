@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi } from 'vitest'
 import Trends from './page'
 import { MOCK_GOAL, TODAY, dayLogFor, weightFor } from '@/lib/data/mock'
-import { adherence } from '@/lib/data/selectors'
+import { sumMacros } from '@/lib/data/selectors'
 
 vi.mock('next/navigation', () => ({
   usePathname: () => '/trends',
@@ -71,11 +71,16 @@ describe('趋势页', () => {
 
     expect(screen.queryByTestId('chart-adherence')).not.toBeInTheDocument()
     const table = screen.getByRole('table')
-    const expected = `${Math.round(adherence(dayLogFor(TODAY), MOCK_GOAL) * 100)}%`
+    // 过渡期：adherence 已移除，此处内联等价计算。本文件在任务 4 会被整体重写。
+    const todayLog = dayLogFor(TODAY)
+    const intake = todayLog === null ? 0 : sumMacros(todayLog.foods).calories
+    const ratio =
+      MOCK_GOAL.calories > 0 && intake > 0 ? Math.min(intake / MOCK_GOAL.calories, 1) : 0
+    const expected = `${Math.round(ratio * 100)}%`
     expect(valueCell(table, TODAY)).toBe(expected)
   })
 
-  it('7 天视图包含空记录日 2026-09-20，不渲染 NaN 且达标率为 0%', async () => {
+  it('7 天视图切换后不渲染 NaN，且达标表格的数值与数据层一致', async () => {
     const user = userEvent.setup()
     const { container } = render(<Trends />)
     await user.click(screen.getByRole('button', { name: '7 天' }))
@@ -85,6 +90,12 @@ describe('趋势页', () => {
 
     await user.click(screen.getByRole('button', { name: /达标.*表格/ }))
     const table = screen.getByRole('table')
-    expect(valueCell(table, '2026-09-20')).toBe('0%')
+    // 假数据改为按日期生成后，使用范围内每一天都有记录，因此这里校验的是
+    // 「表格数值与数据层一致」，而不是原先的「空记录日为 0%」。
+    const log = dayLogFor('2026-09-20')
+    const intake = log === null ? 0 : sumMacros(log.foods).calories
+    const ratio =
+      MOCK_GOAL.calories > 0 && intake > 0 ? Math.min(intake / MOCK_GOAL.calories, 1) : 0
+    expect(valueCell(table, '2026-09-20')).toBe(`${Math.round(ratio * 100)}%`)
   })
 })

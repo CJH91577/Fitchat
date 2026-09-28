@@ -1,3 +1,4 @@
+import { daysBetween } from './dates'
 import type { DayLog, FoodEntry, MacroTotals, UserGoal } from './types'
 
 export function emptyMacros(): MacroTotals {
@@ -22,14 +23,32 @@ export function netCalories(day: DayLog): number {
   return sumMacros(day.foods).calories - burnedCalories(day)
 }
 
-// 达标率 0..1。目标未设定或没有记录时为 0，绝不返回 NaN 或负值
-export function adherence(day: DayLog, goal: UserGoal): number {
-  if (goal.calories <= 0) return 0
-  const intake = sumMacros(day.foods).calories
-  if (intake <= 0) return 0
-  return Math.min(intake / goal.calories, 1)
-}
-
 export function emptyDayLog(date: string): DayLog {
   return { date, foods: [], exercises: [] }
+}
+
+// 热量盈余 = 摄入 − 每日目标。正数为超出目标，负数为低于目标。
+// 注意与「净热量」区分：净热量是 摄入 − 运动消耗，不减目标。
+export function calorieSurplus(day: DayLog, goal: UserGoal): number {
+  return sumMacros(day.foods).calories - goal.calories
+}
+
+// 热量的「达成」按目标方向判定：
+//   减脂 / 维持 —— 未超标（盈余 ≤ 0）即达成
+//   增肌       —— 吃够（盈余 ≥ 0）即达成
+// 若沿用「填满目标即达成」的规则，对减脂用户会把「吃满」判成达成，语义正好相反。
+export function isCalorieOnTarget(day: DayLog, goal: UserGoal): boolean {
+  const surplus = calorieSurplus(day, goal)
+  return goal.direction === 'bulk' ? surplus >= 0 : surplus <= 0
+}
+
+export function isExerciseOnTarget(day: DayLog, goal: UserGoal): boolean {
+  if (goal.exerciseCalories <= 0) return false
+  return burnedCalories(day) >= goal.exerciseCalories
+}
+
+// 该日期是否在用户的使用范围内。早于开始使用日期 = 该用户当时还没开始用，
+// 这与「当天没有记录任何活动」是两种不同状态，界面必须能区分。
+export function hasRecord(date: string, startedAt: string): boolean {
+  return daysBetween(startedAt, date) >= 0
 }

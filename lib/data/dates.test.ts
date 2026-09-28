@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { toDateKey, addDays, weekdayOf, lastNDays, monthGrid } from './dates'
+import { toDateKey, addDays, weekdayOf, lastNDays, monthGrid, daysBetween } from './dates'
 
 describe('toDateKey', () => {
   it('使用本地时区，跨零点不偏移', () => {
@@ -66,5 +66,24 @@ describe('monthGrid', () => {
     for (const m of [1, 2, 4, 9, 12]) {
       expect(monthGrid(2026, m).length % 7).toBe(0)
     }
+  })
+})
+
+describe('daysBetween', () => {
+  it('同一天为 0', () => {
+    expect(daysBetween('2026-09-22', '2026-09-22')).toBe(0)
+  })
+
+  it('向后为正', () => {
+    expect(daysBetween('2026-09-22', '2026-09-25')).toBe(3)
+  })
+
+  it('向前为负', () => {
+    expect(daysBetween('2026-09-25', '2026-09-22')).toBe(-3)
+  })
+
+  it('跨月跨年正确', () => {
+    expect(daysBetween('2025-09-22', '2026-09-22')).toBe(365)
+    expect(daysBetween('2026-01-01', '2026-03-01')).toBe(59)
   })
 })

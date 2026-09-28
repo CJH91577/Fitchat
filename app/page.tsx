@@ -1,7 +1,7 @@
 import HeroFigure from '@/components/HeroFigure'
 import RingGroup, { type RingSpec } from '@/components/RingGroup'
 import AiBadge from '@/components/AiBadge'
-import { MOCK_PLAN, MOCK_GOAL, TODAY, dayLogFor, MOCK_WEIGHTS } from '@/lib/data/mock'
+import { MOCK_PLAN, MOCK_GOAL, TODAY, dayLogFor, recentWeights } from '@/lib/data/mock'
 import { burnedCalories, netCalories, sumMacros } from '@/lib/data/selectors'
 import { MEAL_SLOT_LABEL, type MealSlot } from '@/lib/data/types'
 import { weekdayOf } from '@/lib/data/dates'
@@ -11,6 +11,17 @@ const SLOTS: MealSlot[] = ['breakfast', 'lunch', 'dinner', 'snack']
 
 export default function Home() {
   const day = dayLogFor(TODAY)
+
+  // TODAY 必然在用户使用范围内，因此这里不会是 null。
+  // 写成守卫而不是断言，是为了在数据层被改动时给出明确的空态而不是崩溃。
+  if (day === null) {
+    return (
+      <main className={styles.page}>
+        <p className={styles.empty}>今天没有记录。</p>
+      </main>
+    )
+  }
+
   const macros = sumMacros(day.foods)
   const burned = burnedCalories(day)
   const net = netCalories(day)
@@ -23,8 +34,9 @@ export default function Home() {
   ]
 
   const todayPlan = MOCK_PLAN.find((p) => p.weekday === weekdayOf(TODAY))
-  const latestWeight = MOCK_WEIGHTS[MOCK_WEIGHTS.length - 1]
-  const prevWeight = MOCK_WEIGHTS[MOCK_WEIGHTS.length - 2]
+  const weights = recentWeights(2)
+  const latestWeight = weights[weights.length - 1]
+  const prevWeight = weights[weights.length - 2]
   const delta = latestWeight && prevWeight ? Number((latestWeight.kg - prevWeight.kg).toFixed(1)) : 0
 
   const slotCalories = (slot: MealSlot) =>

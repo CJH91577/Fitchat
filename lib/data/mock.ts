@@ -1,11 +1,7 @@
-import { lastNDays } from './dates'
-import type {
-  DayLog,
-  FoodEntry,
-  PlanDay,
-  UserGoal,
-  WeightEntry,
-} from './types'
+import { addDays, daysBetween } from './dates'
+import { generateDayLog, generateWeight } from './generator'
+import { hasRecord } from './selectors'
+import type { DayLog, PlanDay, UserGoal, WeightEntry } from './types'
 
 export const TODAY = '2026-09-22'
 
@@ -14,6 +10,10 @@ export const MOCK_USER = {
   heightCm: 175,
   age: 30,
   sex: 'male' as const,
+  /** 开始使用日期。它是用户自身的属性，不是全局常量。 */
+  startedAt: '2025-09-22',
+  /** 开始使用时的体重，生成体重序列的起点 */
+  startWeightKg: 78,
 }
 
 export const MOCK_GOAL: UserGoal = {
@@ -66,87 +66,35 @@ export const MOCK_PLAN: PlanDay[] = [
   { weekday: 7, theme: '休息', items: [] },
 ]
 
-function entry(id: string, slot: FoodEntry['slot'], name: string, calories: number, protein: number, carbs: number, fat: number, source: FoodEntry['source'] = 'curated'): FoodEntry {
-  return {
-    id,
-    slot,
-    name,
-    grams: 100,
-    source,
-    totals: { calories, protein, carbs, fat },
-  }
+// 早于开始使用日期返回 null（该用户当时还没开始用），
+// 与「在范围内但当天没有任何活动」是两种不同状态。
+export function dayLogFor(date: string): DayLog | null {
+  if (!hasRecord(date, MOCK_USER.startedAt)) return null
+  return generateDayLog(date, MOCK_GOAL)
 }
 
-// 今天：摄入略低于目标，含一条 AI 估算和一次力量训练
-const today: DayLog = {
-  date: TODAY,
-  foods: [
-    entry('t1', 'breakfast', '燕麦牛奶', 380, 18, 55, 9),
-    entry('t2', 'lunch', '鸡胸肉盖饭', 620, 42, 70, 14),
-    entry('t3', 'dinner', '清炒时蔬 + 米饭', 420, 12, 68, 8),
-    entry('t4', 'snack', '红烧肉（AI 估算）', 180, 8, 4, 14, 'ai-estimate'),
-  ],
-  exercises: [
-    {
-      id: 'tx1',
-      kind: 'strength',
-      name: '卧推',
-      sets: [
-        { reps: 10, weightKg: 60 },
-        { reps: 9, weightKg: 65 },
-        { reps: 8, weightKg: 65 },
-      ],
-      caloriesBurned: 180,
-    },
-    {
-      id: 'tx2',
-      kind: 'cardio',
-      name: '慢跑',
-      minutes: 30,
-      caloriesBurned: 300,
-    },
-  ],
+export function weightFor(date: string): number | null {
+  if (!hasRecord(date, MOCK_USER.startedAt)) return null
+  return generateWeight(date, MOCK_USER.startedAt, MOCK_USER.startWeightKg, MOCK_GOAL.targetWeightKg)
 }
 
-// 昨天：超出目标，用于验证「超出」提示
-const yesterday: DayLog = {
-  date: '2026-09-21',
-  foods: [
-    entry('y1', 'breakfast', '豆浆油条', 520, 14, 62, 24, 'open-data'),
-    entry('y2', 'lunch', '火锅', 1100, 55, 70, 65, 'ai-estimate'),
-    entry('y3', 'dinner', '面条', 480, 16, 80, 8),
-  ],
-  exercises: [],
+/** 从 fromKey 到 toKey（含两端）的体重序列，按日期升序；范围外的日期被剔除 */
+export function weightSeries(fromKey: string, toKey: string): WeightEntry[] {
+  return datesWithRecords(fromKey, toKey).map((date) => ({
+    date,
+    kg: weightFor(date) as number,
+  }))
 }
 
-// 前天：完全空记录，用于验证空状态
-const emptyDay: DayLog = { date: '2026-09-20', foods: [], exercises: [] }
-
-const older: DayLog = {
-  date: '2026-09-19',
-  foods: [entry('o1', 'lunch', '牛肉饭', 700, 38, 82, 18)],
-  exercises: [
-    { id: 'ox1', kind: 'strength', name: '深蹲', sets: [{ reps: 5, weightKg: 100 }], caloriesBurned: 220 },
-  ],
+/** 从 fromKey 到 toKey（含两端）中，落在使用范围内的所有日期，升序 */
+export function datesWithRecords(fromKey: string, toKey: string): string[] {
+  const span = daysBetween(fromKey, toKey)
+  if (span < 0) return []
+  const all = Array.from({ length: span + 1 }, (_, i) => addDays(fromKey, i))
+  return all.filter((date) => hasRecord(date, MOCK_USER.startedAt))
 }
 
-export const MOCK_DAYS: Record<string, DayLog> = {
-  [today.date]: today,
-  [yesterday.date]: yesterday,
-  [emptyDay.date]: emptyDay,
-  [older.date]: older,
-}
-
-// 覆盖 90 天的体重序列（带噪点，不是直线），以及最近 30 天的达标记录
-export const MOCK_WEIGHTS: WeightEntry[] = lastNDays(TODAY, 90).map((date, i) => ({
-  date,
-  kg: Number((72.4 - i * 0.06 + Math.sin(i * 1.7) * 0.35).toFixed(1)),
-}))
-
-export function dayLogFor(date: string): DayLog {
-  return MOCK_DAYS[date] ?? { date, foods: [], exercises: [] }
-}
-
-export function weightFor(date: string): number | undefined {
-  return MOCK_WEIGHTS.find((w) => w.date === date)?.kg
+/** 最近 n 天的体重序列（含今天），供首页与测试使用 */
+export function recentWeights(n: number): WeightEntry[] {
+  return weightSeries(addDays(TODAY, -(n - 1)), TODAY)
 }
