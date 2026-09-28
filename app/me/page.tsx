@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { MOCK_GOAL, MOCK_USER } from '@/lib/data/mock'
+import { MOCK_GOAL, MOCK_USER, TODAY, weightFor } from '@/lib/data/mock'
 import styles from './me.module.css'
 
 const DIRECTION_LABEL = { cut: '减脂', bulk: '增肌', maintain: '维持' } as const
@@ -19,6 +19,13 @@ export default function Me() {
           <li className={styles.row}>
             <span className={styles.rowName}>年龄</span>
             <span className={`${styles.rowMeta} num-tabular`}>{MOCK_USER.age}</span>
+          </li>
+          <li className={styles.row}>
+            <span className={styles.rowName}>当前体重</span>
+            {/* null 只会在开始使用日期晚于今天时出现；保留判断以免渲染出字面量 null */}
+            <span className={`${styles.rowMeta} num-tabular`}>
+              {weightFor(TODAY) ?? '—'} kg
+            </span>
           </li>
         </ul>
       </section>

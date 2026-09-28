@@ -145,8 +145,9 @@ export function generateWeight(
   targetKg: number,
 ): number {
   const elapsed = daysBetween(startedAt, date)
-  // 一年内线性向目标体重靠拢，之后停在目标附近
-  const progress = Math.min(Math.max(elapsed, 0) / 365, 1)
+  // 用一年半作为收敛期。若收敛期恰好等于使用时长，今天的体重会正好落在目标
+  // 上——演示里的用户看起来已经达成目标，体重序列末端也会变成一条平线。
+  const progress = Math.min(Math.max(elapsed, 0) / 548, 1)
   const trend = startKg + (targetKg - startKg) * progress
   const noise = (seededUnit(date, 70) - 0.5) * 0.6
   return Math.round((trend + noise) * 10) / 10
