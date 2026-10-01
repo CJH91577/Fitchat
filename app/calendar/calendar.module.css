@@ -5,6 +5,8 @@
   gap: 12px;
   max-width: 520px;
   margin: 0 auto;
+  /* 撑满一屏（扣掉固定底部导航的留白），网格才有可分配的剩余高度 */
+  min-height: 100dvh;
 }
 
 .title {
@@ -38,6 +40,12 @@
   font-size: 20px;
   font-family: inherit;
   cursor: pointer;
+}
+
+/* 网格吃掉标题与月份导航之外的剩余高度——「铺满」靠的就是这一条 */
+.calendarArea {
+  flex: 1;
+  min-height: 0;
 }
 
 .empty {

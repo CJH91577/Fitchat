@@ -1,38 +1,41 @@
+/* 铺满：wrap 撑满父容器，网格吃掉剩余高度 */
 .wrap {
+  height: 100%;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-}
-
-.header {
-  color: var(--text-primary);
-  font-size: 15px;
-  font-weight: 600;
+  gap: 6px;
 }
 
 .weekdays,
 .grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
+  gap: 3px;
+}
+
+.grid {
+  flex: 1;
+  /* 行数由当月实际周数决定（5 行，需要时 6 行），每行等分可用高度 */
+  grid-auto-rows: 1fr;
+  min-height: 0;
 }
 
 .weekday {
   text-align: center;
   color: var(--text-muted);
   font-size: 12px;
-  padding-bottom: 2px;
 }
 
 .cell,
 .emptyCell {
-  aspect-ratio: 1 / 1.15;
   border-radius: 8px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
+  gap: 6px;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .cell {
@@ -51,7 +54,7 @@ a.cell {
 }
 
 /* 尚未开始使用：连普通格子那层淡底都不给，数字也压暗。
-   目的是与「当天未达成」形成一眼可辨的差别——后者有底色、有两个空心点。 */
+   目的是与「当天未达成」形成一眼可辨的差别——后者有底色、并画两根空轨道。 */
 .notStarted {
   background: transparent;
 }
@@ -67,34 +70,25 @@ a.cell {
   line-height: 1;
 }
 
-.dots {
+.bars {
   display: flex;
-  gap: 2px;
+  flex-direction: column;
+  gap: 4px;
+  width: 72%;
 }
 
-/* 4px 小点。实心=达成，空心=未达成，形状差异是非颜色通道 */
-.dot {
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  border: 1px solid var(--dot-color, var(--text-muted));
+/* 未达标：灰色空轨道——有边框、无填充。
+   除了颜色，填充与否是第二个通道：对色觉障碍读者也不必只靠蓝/灰分辨。 */
+.bar {
+  display: block;
+  height: 6px;
+  border-radius: 3px;
+  border: 1px solid var(--text-muted);
   background: transparent;
 }
 
-.dotDone {
-  background: var(--dot-color, var(--text-muted));
-}
-
-.legend {
-  display: flex;
-  gap: 14px;
-  margin-top: 2px;
-}
-
-.legendItem {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  color: var(--text-secondary);
-  font-size: 12px;
+/* 达标：整条填满该指标的颜色——与主页圆环用的是同一组令牌 */
+.barDone {
+  background: var(--bar-color);
+  border-color: var(--bar-color);
 }

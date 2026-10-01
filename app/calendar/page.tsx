@@ -77,13 +77,10 @@ export default function Calendar({
       {monthIsOutOfRange ? (
         <p className={styles.empty}>这个月还没有开始使用。</p>
       ) : (
-        <CalendarMonth
-          year={year}
-          month={month}
-          cells={cells}
-          statusByDate={statusByDate}
-          today={TODAY}
-        />
+        // 这层包裹负责吃掉剩余高度，网格才能铺满——宽高都由它决定
+        <div className={styles.calendarArea}>
+          <CalendarMonth cells={cells} statusByDate={statusByDate} today={TODAY} />
+        </div>
       )}
     </main>
   )

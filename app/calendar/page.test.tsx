@@ -6,12 +6,20 @@ import { TODAY } from '@/lib/data/mock'
 vi.mock('next/navigation', () => ({ usePathname: () => '/calendar' }))
 
 describe('日历页', () => {
+
   it('默认月份由 TODAY 推导，与「今天」所在的月份一致', () => {
     render(<Calendar />)
     const year = Number(TODAY.slice(0, 4))
     const month = Number(TODAY.slice(5, 7))
     // 月份文案在页面上出现两处：导航标题与 CalendarMonth 的表头
     expect(screen.getAllByText(`${year} 年 ${month} 月`).length).toBeGreaterThan(0)
+  })
+
+  it('月份文案只出现一处——页面导航，网格不再重复', () => {
+    render(<Calendar />)
+    const year = Number(TODAY.slice(0, 4))
+    const month = Number(TODAY.slice(5, 7))
+    expect(screen.getAllByText(`${year} 年 ${month} 月`)).toHaveLength(1)
   })
 
   it('渲染当月标题', () => {

@@ -4,34 +4,26 @@ import styles from './CalendarMonth.module.css'
 const WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日']
 
 /**
- * 一天的两种状态之外还有第三种：这一天还没开始使用。
- * 它不是「达成」也不是「未达成」，界面必须能与后两者区分开。
+ * 一天的三种状态：达成、未达成、以及这一天还没开始使用。
+ * 最后一种不是前两种的任何一种，界面必须能区分。
  */
 export type DayStatus = { calories: boolean; exercise: boolean; notStarted?: boolean }
 
 export type CalendarMonthProps = {
-  year: number
-  month: number
   cells: (string | null)[]
   statusByDate: Record<string, DayStatus>
   today: string
 }
 
-const DAY_LABEL = ['热量', '运动'] as const
+// 顺序固定：上=热量、下=运动。图例已去掉，身份由位置与颜色共同承载。
+const BARS = [
+  { label: '热量', colorVar: 'var(--ring-calories)' },
+  { label: '运动', colorVar: 'var(--ring-exercise)' },
+] as const
 
-export default function CalendarMonth({
-  year,
-  month,
-  cells,
-  statusByDate,
-  today,
-}: CalendarMonthProps) {
+export default function CalendarMonth({ cells, statusByDate, today }: CalendarMonthProps) {
   return (
     <div className={styles.wrap}>
-      <div className={styles.header}>
-        {year} 年 {month} 月
-      </div>
-
       <div className={styles.weekdays}>
         {WEEKDAYS.map((w) => (
           <div key={w} className={styles.weekday}>
@@ -49,7 +41,7 @@ export default function CalendarMonth({
           const status = statusByDate[date] ?? { calories: false, exercise: false }
           const flags = [status.calories, status.exercise]
 
-          // 尚未开始使用：不可点（点进去只会看到一句空话），也不画状态点
+          // 尚未开始使用：不可点（点进去只会看到一句空话），也不画读条
           // （画了就与「当天未达成」长得一样）。
           if (status.notStarted) {
             return (
@@ -69,47 +61,23 @@ export default function CalendarMonth({
               key={date}
               href={`/day/${date}`}
               className={`${styles.cell} ${isToday ? styles.today : ''}`}
+              // 图例去掉后，达成与否只靠颜色与填充表达；无障碍名称是替文字读者保留的通道
               aria-label={`${date}，热量${flags[0] ? '达成' : '未达成'}，运动${flags[1] ? '达成' : '未达成'}`}
             >
               <span className={`${styles.dayNum} num-tabular`}>{dayNum}</span>
-              <span className={styles.dots}>
-                {DAY_LABEL.map((label, index) => (
-                  // 实心 / 空心 是不依赖颜色的第二通道；位置顺序固定，颜色只作强化
+              <span className={styles.bars}>
+                {BARS.map((bar, index) => (
                   <span
-                    key={label}
-                    data-ring={label}
-                    className={`${styles.dot} ${flags[index] ? styles.dotDone : ''}`}
-                    style={
-                      {
-                        '--dot-color':
-                          index === 0 ? 'var(--ring-calories)' : 'var(--ring-exercise)',
-                      } as React.CSSProperties
-                    }
+                    key={bar.label}
+                    data-bar={bar.label}
+                    className={`${styles.bar} ${flags[index] ? styles.barDone : ''}`}
+                    style={{ '--bar-color': bar.colorVar } as React.CSSProperties}
                   />
                 ))}
               </span>
             </Link>
           )
         })}
-      </div>
-
-      <div className={styles.legend}>
-        <span className={styles.legendItem}>
-          <span
-            className={`${styles.dot} ${styles.dotDone}`}
-            style={{ '--dot-color': 'var(--text-primary)' } as React.CSSProperties}
-          />
-          达成
-        </span>
-        <span className={styles.legendItem}>
-          <span
-            className={styles.dot}
-            style={{ '--dot-color': 'var(--text-primary)' } as React.CSSProperties}
-          />
-          未达成
-        </span>
-        <span className={styles.legendItem}>左点 = 热量 · 右点 = 运动</span>
-        <span className={styles.legendItem}>尚未开始使用</span>
       </div>
     </div>
   )
