@@ -84,7 +84,7 @@ export default function RingGroup({
                   // 是浅粉（实测 #F9E1D7）；而蓝色在同样比例下仍被认作蓝，于是
                   // 同一个机制只在一半的环上出问题。RingGroup.test.tsx 用色度
                   // 保留率把这条钉住。
-                  strokeOpacity={0.55}
+                  strokeOpacity={0.4}
                 />
                 {hasGoal && (
                   <circle
