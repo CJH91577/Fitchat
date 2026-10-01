@@ -4,7 +4,7 @@
 
 移动优先的 H5 饮食与健身应用演示：记录每天吃了什么、练了什么，再看体重与热量盈余的变化。基于 Next.js + React + TypeScript，**全部数据来自本地 mock，无后端**。
 
-在线演示：<!-- 部署后把 Vercel 链接填在这里 -->
+**在线演示**：<https://fitchat-five.vercel.app>
 
 ## 技术栈
 
