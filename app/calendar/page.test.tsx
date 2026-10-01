@@ -64,7 +64,7 @@ describe('日历页', () => {
 
   it('渲染出今天所在月份的日期链接', () => {
     render(<Calendar />)
-    expect(screen.getByRole('link', { name: /2026-09-22/ })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: new RegExp(TODAY) })).toBeInTheDocument()
   })
 
   it('开始使用日期之前的月份不渲染任何日期链接', () => {

@@ -4,7 +4,7 @@ import AiBadge from '@/components/AiBadge'
 import { MOCK_PLAN, MOCK_GOAL, TODAY, dayLogFor, weightFor, recentWeights } from '@/lib/data/mock'
 import { burnedCalories, netCalories, sumMacros } from '@/lib/data/selectors'
 import { MEAL_SLOT_LABEL, type MealSlot } from '@/lib/data/types'
-import { weekdayOf } from '@/lib/data/dates'
+import { formatDayHeading, formatMonthDay, weekdayOf } from '@/lib/data/dates'
 import styles from './page.module.css'
 
 const SLOTS: MealSlot[] = ['breakfast', 'lunch', 'dinner', 'snack']
@@ -47,7 +47,7 @@ export default function Home() {
   return (
     <main className={styles.page}>
       <header className={styles.dateBar}>
-        <span className={styles.dateText}>9月22日 周二</span>
+        <span className={styles.dateText}>{formatDayHeading(TODAY)}</span>
       </header>
 
       <section className={styles.card}>
@@ -146,7 +146,8 @@ export default function Home() {
             今日未记录
             {weights.length > 0 && (
               <span className={styles.lastWeight}>
-                （最近一次 {weights[weights.length - 1].kg} kg · {weights[weights.length - 1].date}）
+                （最近一次 {weights[weights.length - 1].kg} kg ·{' '}
+                {formatMonthDay(weights[weights.length - 1].date)}）
               </span>
             )}
           </p>

@@ -11,6 +11,18 @@ import {
   recentWeights,
 } from './mock'
 import { calorieSurplus, isInRange } from './selectors'
+import { addDays, daysBetween, todayKey } from './dates'
+
+describe('「今天」的来源', () => {
+  it('取自构建日期，而不是写死的常量', () => {
+    // 这条钉住的正是本次改动：谁把 TODAY 改回字面量，这里立刻转红。
+    expect(TODAY).toBe(todayKey())
+  })
+
+  it('落在使用范围内，晚于开始使用日期', () => {
+    expect(daysBetween(MOCK_USER.startedAt, TODAY)).toBeGreaterThan(0)
+  })
+})
 
 describe('使用范围', () => {
   it('开始使用日期早于今天', () => {
@@ -59,21 +71,21 @@ describe('假数据的覆盖度', () => {
   })
 
   it('存在至少一条 AI 估算来源的饮食', () => {
-    const hasAi = datesWithRecords('2026-08-01', TODAY).some((date) =>
+    const hasAi = datesWithRecords(addDays(TODAY, -60), TODAY).some((date) =>
       (dayLogFor(date)?.foods ?? []).some((f) => f.source === 'ai-estimate'),
     )
     expect(hasAi).toBe(true)
   })
 
   it('存在至少一次力量训练', () => {
-    const hasStrength = datesWithRecords('2026-06-01', TODAY).some((date) =>
+    const hasStrength = datesWithRecords(addDays(TODAY, -120), TODAY).some((date) =>
       (dayLogFor(date)?.exercises ?? []).some((e) => e.kind === 'strength'),
     )
     expect(hasStrength).toBe(true)
   })
 
   it('存在至少一天完全没有运动（休息日）', () => {
-    const hasRest = datesWithRecords('2026-06-01', TODAY).some(
+    const hasRest = datesWithRecords(addDays(TODAY, -120), TODAY).some(
       (date) => (dayLogFor(date)?.exercises ?? []).length === 0,
     )
     expect(hasRest).toBe(true)

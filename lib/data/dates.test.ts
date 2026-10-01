@@ -1,5 +1,48 @@
 import { describe, it, expect } from 'vitest'
-import { toDateKey, addDays, weekdayOf, lastNDays, monthGrid, daysBetween } from './dates'
+import {
+  toDateKey,
+  addDays,
+  weekdayOf,
+  lastNDays,
+  monthGrid,
+  daysBetween,
+  todayKey,
+  weekdayLabelOf,
+  formatMonthDay,
+  formatDayHeading,
+} from './dates'
+
+describe('todayKey', () => {
+  it('按固定时区取日期，不受运行环境时区影响', () => {
+    // UTC 时间 2026-09-30 23:30 已是北京时间 2026-10-01 07:30。
+    // 若误用运行环境时区（部署机上通常是 UTC），这里会返回 2026-09-30。
+    expect(todayKey(new Date('2026-09-30T23:30:00Z'))).toBe('2026-10-01')
+  })
+
+  it('北京时间零点两侧分属两天', () => {
+    expect(todayKey(new Date('2026-09-30T15:59:00Z'))).toBe('2026-09-30') // 北京 23:59
+    expect(todayKey(new Date('2026-09-30T16:01:00Z'))).toBe('2026-10-01') // 北京 00:01
+  })
+
+  it('产出的日期键可直接交给其他日期函数', () => {
+    const key = todayKey(new Date('2026-01-05T12:00:00Z'))
+    expect(key).toBe('2026-01-05')
+    expect(addDays(key, 1)).toBe('2026-01-06')
+  })
+})
+
+describe('日期文案', () => {
+  it('星期标签以 1 = 周一 … 7 = 周日 取', () => {
+    expect(weekdayLabelOf('2026-09-21')).toBe('周一')
+    expect(weekdayLabelOf('2026-09-22')).toBe('周二')
+    expect(weekdayLabelOf('2026-09-27')).toBe('周日')
+  })
+
+  it('日期标题不补零，与设计稿的写法一致', () => {
+    expect(formatMonthDay('2026-09-05')).toBe('9月5日')
+    expect(formatDayHeading('2026-10-01')).toBe('10月1日 周四')
+  })
+})
 
 describe('toDateKey', () => {
   it('使用本地时区，跨零点不偏移', () => {

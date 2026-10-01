@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { describe, it, expect, vi } from 'vitest'
 import Home from './page'
 import { TODAY, weightFor, dayLogFor } from '@/lib/data/mock'
+import { formatDayHeading } from '@/lib/data/dates'
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/' }))
 
@@ -34,6 +35,11 @@ describe('首页', () => {
     render(<Home />)
     const today = weightFor(TODAY) as number
     expect(screen.getByText(`${today} kg`)).toBeInTheDocument()
+  })
+
+  it('日期栏显示当天的日期与星期，而不是写死的文案', () => {
+    render(<Home />)
+    expect(screen.getByText(formatDayHeading(TODAY))).toBeInTheDocument()
   })
 
   it('体重涨跌的样式不含成功或危险状态色', () => {

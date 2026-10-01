@@ -1,0 +1,26 @@
+name: 每晚重建
+
+# 「今天」在构建时确定（见 next.config.ts），站点不会自己往前翻页：
+# 不重建的话，日历会永远停在最后一次构建的那一天。
+# 这条定时任务就是为它准备的——每天触发一次部署，让「今天」跟上真实日期。
+
+on:
+  schedule:
+    # 每天 18:00 UTC = 北京时间次日 02:00，避开用户活跃时段
+    - cron: '0 18 * * *'
+  # 也可以随时手动跑一次，用来验证部署钩子是否还有效
+  workflow_dispatch:
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 触发重新部署
+        env:
+          DEPLOY_HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK }}
+        run: |
+          if [ -z "$DEPLOY_HOOK" ]; then
+            echo "::error::缺少仓库密钥 VERCEL_DEPLOY_HOOK。请在 Vercel 项目的 Settings → Git → Deploy Hooks 建一个 hook，把它的 URL 存成同名仓库密钥。"
+            exit 1
+          fi
+          curl -fsS -X POST "$DEPLOY_HOOK"

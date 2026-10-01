@@ -1,8 +1,6 @@
 import { MOCK_PLAN, TODAY } from '@/lib/data/mock'
-import { weekdayOf } from '@/lib/data/dates'
+import { WEEKDAY_LABELS, weekdayOf } from '@/lib/data/dates'
 import styles from './plan.module.css'
-
-const WEEKDAY_LABEL = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
 
 export default function Plan() {
   const todayWeekday = weekdayOf(TODAY)
@@ -17,7 +15,7 @@ export default function Plan() {
           return (
             <li key={day.weekday} className={`${styles.day} ${isToday ? styles.today : ''}`}>
               <div className={styles.dayHead}>
-                <span className={styles.weekday}>{WEEKDAY_LABEL[day.weekday - 1]}</span>
+                <span className={styles.weekday}>{WEEKDAY_LABELS[day.weekday]}</span>
                 <span className={styles.theme}>{day.theme}</span>
                 {isToday && <span className={styles.todayTag}>今天</span>}
               </div>

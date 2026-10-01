@@ -1,9 +1,23 @@
-import { addDays, daysBetween } from './dates'
+import { addDays, daysBetween, todayKey } from './dates'
 import { generateDayLog, generateWeight } from './generator'
 import { isInRange } from './selectors'
 import type { DayLog, PlanDay, UserGoal, WeightEntry } from './types'
 
-export const TODAY = '2026-09-22'
+/**
+ * 演示中的「今天」。
+ *
+ * 由**构建时**确定一次，而不是每次渲染现算：静态导出后没有服务端，
+ * 「今天」只能冻在构建那一刻；而且服务端与浏览器必须拿到同一个值，
+ * 否则客户端组件（日历页）在浏览器里重新求值会与预渲染结果不符。
+ *
+ * NEXT_PUBLIC_TODAY 由 next.config.ts 在构建时注入（两端都会内联成同一个
+ * 字面量）。这里保留 fallback 是为了测试环境——测试直接读不到那个变量，
+ * 于是退回到「此刻的真实日期」。
+ *
+ * 代价：日期随构建时间冻结。由每晚的定时重建刷新
+ * （见 .github/workflows/nightly-rebuild.yml）。
+ */
+export const TODAY = process.env.NEXT_PUBLIC_TODAY || todayKey()
 
 export const MOCK_USER = {
   name: '演示用户',
