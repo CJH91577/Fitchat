@@ -1,8 +1,34 @@
-import { render, screen } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
-import DayDetail from './page'
+import DayDetail, { generateStaticParams } from './page'
+import { MOCK_USER, TODAY, datesWithRecords } from '@/lib/data/mock'
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/day/2026-09-22' }))
+
+describe('某日详情页的预渲染范围', () => {
+  it('覆盖从开始使用日期到今天的每一天，且不重复', () => {
+    const dates = generateStaticParams().map((p) => p.date)
+    const expected = datesWithRecords(MOCK_USER.startedAt, TODAY)
+
+    expect(dates).toEqual(expected)
+    expect(dates[0]).toBe(MOCK_USER.startedAt)
+    expect(dates[dates.length - 1]).toBe(TODAY)
+    expect(new Set(dates).size).toBe(dates.length)
+  })
+
+  it('首尾两天都能渲染出真实内容，而不是空态', async () => {
+    const dates = generateStaticParams().map((p) => p.date)
+
+    for (const date of [dates[0], dates[dates.length - 1]]) {
+      const ui = await DayDetail({ params: Promise.resolve({ date }) })
+      render(ui)
+      expect(screen.getByText(/净热量/)).toBeInTheDocument()
+      expect(screen.getByTestId('ring-center')).toBeInTheDocument()
+      // 同一次测试里渲染两次会叠加在同一份 document 上，多匹配会让断言失真
+      cleanup()
+    }
+  })
+})
 
 describe('某日详情页', () => {
   it('标题显示所选日期', async () => {

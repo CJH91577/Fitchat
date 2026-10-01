@@ -2,18 +2,31 @@ import Link from 'next/link'
 import HeroFigure from '@/components/HeroFigure'
 import RingGroup, { type RingSpec } from '@/components/RingGroup'
 import AiBadge from '@/components/AiBadge'
-import { MOCK_GOAL, dayLogFor, weightFor } from '@/lib/data/mock'
+import { MOCK_GOAL, MOCK_USER, TODAY, datesWithRecords, dayLogFor, weightFor } from '@/lib/data/mock'
 import { burnedCalories, netCalories, sumMacros } from '@/lib/data/selectors'
 import { MEAL_SLOT_LABEL, type MealSlot } from '@/lib/data/types'
-import { weekdayOf } from '@/lib/data/dates'
+import { formatDayHeading } from '@/lib/data/dates'
 import styles from './day.module.css'
 
 const SLOTS: MealSlot[] = ['breakfast', 'lunch', 'dinner', 'snack']
-const WEEKDAY_LABEL = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日']
 
 function isValidDateKey(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
   return !Number.isNaN(new Date(value).getTime())
+}
+
+/**
+ * 预渲染从开始使用日期到今天的每一天。
+ *
+ * 这些页面本来就完全由日期决定、内容不随请求变化，没必要每次请求现算。
+ * 更实际的理由是：将来切到静态导出（output: 'export'）时没有服务端，
+ * 所有路径必须在构建时就列出来，否则它们会直接 404。
+ *
+ * 「今天」在构建时确定，所以覆盖范围会随每次构建往前推进——这也是需要
+ * 定时重建的原因之一（见 .github/workflows/nightly-rebuild.yml）。
+ */
+export function generateStaticParams(): { date: string }[] {
+  return datesWithRecords(MOCK_USER.startedAt, TODAY).map((date) => ({ date }))
 }
 
 export default async function DayDetail({
@@ -56,17 +69,13 @@ export default async function DayDetail({
     { kind: 'exercise', label: '运动', value: burned, goal: MOCK_GOAL.exerciseCalories, unit: '千卡' },
   ]
 
-  const [, mm, dd] = date.split('-')
-
   return (
     <main className={styles.page}>
       <header className={styles.dateBar}>
         <Link href="/calendar" className={styles.back}>
           ‹ 日历
         </Link>
-        <span className={styles.dateText}>
-          {Number(mm)}月{Number(dd)}日 {WEEKDAY_LABEL[weekdayOf(date)]}
-        </span>
+        <span className={styles.dateText}>{formatDayHeading(date)}</span>
         <span className={styles.spacer} />
       </header>
 
