@@ -3,7 +3,7 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  max-width: 520px;
+  max-width: var(--app-max-width);
   margin: 0 auto;
   /* 撑满一屏（扣掉固定底部导航的留白），网格才有可分配的剩余高度 */
   min-height: 100dvh;

@@ -3,6 +3,7 @@
 
   --surface-page: #f9f9f7;
   --surface-card: #fcfcfb;
+  --surface-canvas: #efeee9;
   --text-primary: #0b0b0b;
   --text-secondary: #52514e;
   --text-muted: #898781;
@@ -16,6 +17,7 @@
   --ring-carbs: #eda100;
 
   --font-sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --app-max-width: 520px;
   --radius-card: 16px;
   --radius-tile: 12px;
 }
@@ -27,6 +29,7 @@
 
     --surface-page: #0d0d0d;
     --surface-card: #1a1a19;
+    --surface-canvas: #000000;
     --text-primary: #ffffff;
     --text-secondary: #c3c2b7;
     --text-muted: #898781;
@@ -47,6 +50,7 @@
 
   --surface-page: #0d0d0d;
   --surface-card: #1a1a19;
+  --surface-canvas: #000000;
   --text-primary: #ffffff;
   --text-secondary: #c3c2b7;
   --text-muted: #898781;
@@ -84,4 +88,30 @@ body {
 
 .num-tabular {
   font-variant-numeric: tabular-nums;
+}
+
+/*
+ * 宽屏（桌面浏览器）：把整列收成一条手机宽度的竖列。
+ *
+ * 这套界面是按手机宽度设计的，在桌面浏览器上直接铺开会出现两个问题：
+ * 底部导航横跨整个窗口，内容却只有中间窄窄一条，整页看起来像没做完。
+ * 这里让整列居中、两侧露出略深的底色，并补上发丝边框与满高，
+ * 使内容与底栏连成一体。
+ *
+ * 规则放在 globals.css 而不是各页面的模块里，是因为「框架」是跨页面的：
+ * 每个页面都恰好渲染一个 <main>。列的宽度取自 --app-max-width，与底部导航
+ * 共用同一个令牌——两者用不同的宽度值就会在宽屏下错开。
+ *
+ * 只在 ≥640px 生效，手机端布局完全不受影响。
+ */
+@media (min-width: 640px) {
+  body {
+    background: var(--surface-canvas);
+  }
+
+  main {
+    background: var(--surface-page);
+    min-height: 100dvh;
+    border-inline: 1px solid var(--border-hairline);
+  }
 }

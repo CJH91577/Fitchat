@@ -44,3 +44,35 @@ describe('CSS Modules 类名契约', () => {
     expect(problems).toEqual([])
   })
 })
+
+describe('宽屏下的手机列', () => {
+  const globals = readFileSync(join(process.cwd(), 'app', 'globals.css'), 'utf8')
+  const navCss = readFileSync(join(process.cwd(), 'components', 'BottomNav.module.css'), 'utf8')
+
+  it('列宽只有一个来源，页面样式里不再写死像素值', () => {
+    // 底栏与内容列必须用同一个宽度值，否则宽屏下两者会错开。而这种错位在
+    // 手机上完全看不出来（手机本来就比列窄），只能靠这条契约守住。
+    const hardcoded = ROOTS.flatMap((root) =>
+      walk(join(process.cwd(), root)).filter(
+        (file) =>
+          file.endsWith('.module.css') && /max-width:\s*520px/.test(readFileSync(file, 'utf8')),
+      ),
+    )
+
+    expect(hardcoded).toEqual([])
+  })
+
+  it('底部导航与内容列共用同一个宽度令牌', () => {
+    expect(navCss).toContain('max-width: var(--app-max-width)')
+    expect(navCss).toContain('margin-inline: auto')
+  })
+
+  it('整列框架只在宽屏生效，手机端不会被套上边框', () => {
+    const at = globals.indexOf('@media (min-width: 640px)')
+    expect(at, 'globals.css 里找不到宽屏媒体查询').toBeGreaterThan(-1)
+
+    const wide = globals.slice(at)
+    expect(wide).toContain('background: var(--surface-canvas)')
+    expect(wide).toContain('border-inline')
+  })
+})

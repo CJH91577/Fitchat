@@ -3,11 +3,20 @@
   bottom: 0;
   left: 0;
   right: 0;
+  /* 与页面列同宽并居中：宽屏下若铺满窗口，底栏会与居中的内容列错开 */
+  max-width: var(--app-max-width);
+  margin-inline: auto;
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   background: var(--surface-card);
   border-top: 1px solid var(--border-hairline);
   padding-bottom: env(safe-area-inset-bottom);
+}
+
+@media (min-width: 640px) {
+  .nav {
+    border-inline: 1px solid var(--border-hairline);
+  }
 }
 
 .item {

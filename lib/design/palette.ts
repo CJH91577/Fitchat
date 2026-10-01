@@ -2,6 +2,7 @@ export const PALETTE = {
   light: {
     '--surface-page': '#f9f9f7',
     '--surface-card': '#fcfcfb',
+    '--surface-canvas': '#efeee9',
     '--text-primary': '#0b0b0b',
     '--text-secondary': '#52514e',
     '--text-muted': '#898781',
@@ -15,6 +16,7 @@ export const PALETTE = {
   dark: {
     '--surface-page': '#0d0d0d',
     '--surface-card': '#1a1a19',
+    '--surface-canvas': '#000000',
     '--text-primary': '#ffffff',
     '--text-secondary': '#c3c2b7',
     '--text-muted': '#898781',
