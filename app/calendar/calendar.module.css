@@ -42,10 +42,13 @@
   cursor: pointer;
 }
 
-/* 网格吃掉标题与月份导航之外的剩余高度——「铺满」靠的就是这一条 */
+/* 网格吃掉标题与月份导航之外的剩余高度——「铺满」靠的就是这一条。
+   它自己也要是纵向 flex 容器，里面的网格才有确定的高度可铺。 */
 .calendarArea {
   flex: 1;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .empty {

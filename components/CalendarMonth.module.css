@@ -1,6 +1,9 @@
-/* 铺满：wrap 撑满父容器，网格吃掉剩余高度 */
+/* 铺满：wrap 作为 flex 子项吃掉父容器剩余高度，再把剩余高度交给网格。
+   这里刻意不用 height:100%——父级的高度由 flex 算法算出，百分比在部分
+   浏览器里解析不到确定值，链子一断 grid-auto-rows:1fr 就退化成按内容高。 */
 .wrap {
-  height: 100%;
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -10,7 +13,7 @@
 .grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 3px;
+  gap: 2px;
 }
 
 .grid {
@@ -26,9 +29,11 @@
   font-size: 12px;
 }
 
+/* 布局共用：日期格与空位都居中排布。
+   边框只在 .cell 里给——空位要读起来像「这里什么都没有」。 */
 .cell,
 .emptyCell {
-  border-radius: 8px;
+  border-radius: 6px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -38,8 +43,10 @@
   overflow: hidden;
 }
 
+/* 每个日期格有边框，把当天的状态单独框起来 */
 .cell {
   background: color-mix(in oklab, var(--text-primary) 4%, transparent);
+  border: 1px solid var(--border-hairline);
 }
 
 /* 日期格同时是导航链接，需抹掉浏览器默认的链接样式 */
@@ -48,15 +55,16 @@ a.cell {
   color: inherit;
 }
 
+/* 今天：边框加粗并提亮——每格都有框之后，靠粗细与明度才跳得出来 */
 .today {
-  outline: 1px solid var(--axis);
-  outline-offset: -1px;
+  border-color: var(--text-primary);
+  border-width: 2px;
 }
 
-/* 尚未开始使用：连普通格子那层淡底都不给，数字也压暗。
-   目的是与「当天未达成」形成一眼可辨的差别——后者有底色、并画两根空轨道。 */
+/* 尚未开始使用：不要底色也不要可见的框，读起来像「这里什么都没有」 */
 .notStarted {
   background: transparent;
+  border-color: transparent;
 }
 
 .notStarted .dayNum {

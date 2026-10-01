@@ -1,11 +1,44 @@
 import { render, screen } from '@testing-library/react'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, it, expect, vi } from 'vitest'
 import Calendar from './page'
 import { TODAY } from '@/lib/data/mock'
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/calendar' }))
 
+function css(relPath: string): string {
+  return readFileSync(join(process.cwd(), ...relPath.split('/')), 'utf8')
+}
+
+/**
+ * 判断某个选择器的规则块里是否含某条声明。
+ * 必须把「选择器」与「声明」绑在同一对花括号内判断——否则像
+ * `.weekdays, .grid { … }` 这条共用规则会被误认为 .grid 自身的规则，
+ * 结果是断言了一个不相干的块。
+ */
+function ruleHas(source: string, selector: string, declaration: string): boolean {
+  const decl = declaration.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return new RegExp(`\\${selector}\\s*\\{[^}]*${decl}[^}]*\\}`).test(source)
+}
+
 describe('日历页', () => {
+  it('铺满高度所需的声明都在', () => {
+    // 注意这条钉的是**声明**，不是渲染结果——「是否真的铺满手机屏幕」
+    // 只有真机能确认。它的价值在于：谁删掉链上的任何一环，这里会立刻转红。
+    // 实测过一次：.calendarArea 不是 flex 容器、.wrap 用 height:100% 解析
+    // 不到确定高度，于是 grid-auto-rows:1fr 退化成按内容高，网格只有半屏。
+    const pageCss = css('app/calendar/calendar.module.css')
+    const wrapCss = css('components/CalendarMonth.module.css')
+
+    expect(ruleHas(pageCss, '.page', 'min-height: 100dvh')).toBe(true)
+    expect(ruleHas(pageCss, '.calendarArea', 'flex: 1')).toBe(true)
+    expect(ruleHas(pageCss, '.calendarArea', 'display: flex')).toBe(true)
+    expect(ruleHas(wrapCss, '.wrap', 'flex: 1')).toBe(true)
+    expect(ruleHas(wrapCss, '.grid', 'flex: 1')).toBe(true)
+    expect(ruleHas(wrapCss, '.grid', 'grid-auto-rows: 1fr')).toBe(true)
+  })
+
 
   it('默认月份由 TODAY 推导，与「今天」所在的月份一致', () => {
     render(<Calendar />)

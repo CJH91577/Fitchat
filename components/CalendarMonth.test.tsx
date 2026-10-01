@@ -108,6 +108,20 @@ describe('CalendarMonth', () => {
     expect(barsOf(container)).toHaveLength(0)
   })
 
+  it('每个日期格都有边框，把当天状态单独框起来', () => {
+    const css = readFileSync(join(process.cwd(), 'components', 'CalendarMonth.module.css'), 'utf8')
+    const cellRule = /\.cell\s*\{[^}]*\}/.exec(css)?.[0] ?? ''
+    expect(cellRule).toContain('border:')
+
+    // 空占位格与「尚未开始使用」不该有可见的框——它们要读起来像「这里什么都没有」。
+    // 注意 .cell 与 .emptyCell 共用一条布局规则，边框必须只在 .cell 里给。
+    const emptyRule = /\.emptyCell\s*\{[^}]*\}/.exec(css)?.[0] ?? ''
+    expect(emptyRule).not.toContain('border:')
+
+    const notStartedRule = /\.notStarted\s*\{[^}]*\}/.exec(css)?.[0] ?? ''
+    expect(notStartedRule).toContain('border-color: transparent')
+  })
+
   it('每个日期格的无障碍名称说明了各项指标是否达成', () => {
     renderMonth()
     // 图例去掉之后，达成与否只靠颜色与填充表达；无障碍名称是替文字读者保留的通道
