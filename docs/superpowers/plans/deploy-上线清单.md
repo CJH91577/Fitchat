@@ -18,7 +18,7 @@ git push -u origin main
 
 **验证**：仓库里能看到完整提交历史；Actions 里 CI 已自动跑起来并且是绿的。
 
-拿到仓库地址后，可以把 CI 徽章加到 README 顶部（把两个尖括号换成你的用户名与仓库名）：
+CI 徽章已经加在 README 顶部。如果换了仓库位置，徽章地址是：
 
 ```markdown
 ![CI](https://github.com/<用户名>/<仓库>/actions/workflows/ci.yml/badge.svg)
