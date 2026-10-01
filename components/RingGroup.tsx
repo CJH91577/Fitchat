@@ -79,7 +79,12 @@ export default function RingGroup({
                   fill="none"
                   stroke={color}
                   strokeWidth={STROKE}
-                  strokeOpacity={0.18}
+                  // 底轨是「本指标色朝卡片底混合约一半」的一档，而不是低透明度的
+                  // 淡洗。0.18 的淡洗会把橙色环的色度压到填充色的 17%——视觉上
+                  // 是浅粉（实测 #F9E1D7）；而蓝色在同样比例下仍被认作蓝，于是
+                  // 同一个机制只在一半的环上出问题。RingGroup.test.tsx 用色度
+                  // 保留率把这条钉住。
+                  strokeOpacity={0.55}
                 />
                 {hasGoal && (
                   <circle
