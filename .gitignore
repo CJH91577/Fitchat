@@ -20,6 +20,12 @@
 # production
 /build
 
+# 本地数据库：迁移文件（drizzle/）进版本库，库文件不进
+/data/
+*.db
+*.db-wal
+*.db-shm
+
 # misc
 .DS_Store
 *.pem
