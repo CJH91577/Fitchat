@@ -1,4 +1,10 @@
-# Fitchat 上线清单（Vercel，以及将来迁回国内）
+# Fitchat 上线清单（Vercel，已被取代）
+
+> ⚠️ **这份清单已被取代，不要照着它做。**
+>
+> 站点原先部署在 Vercel。但 Vercel 在当前网络环境下**不可达**：实测 `vercel.com` 与 `*.vercel.app` 的 TCP 443 直连超时，`fitchat-five.vercel.app` 的 DNS 还被解析到污染地址。站点已迁移到 Cloudflare Pages，当前有效的部署流程见 [DEPLOY.md](../../../DEPLOY.md)。
+>
+> 本文件保留为**历史记录**：它记录了当时的迁移考量，以及国内访问方案的横向对比（Vercel / Cloudflare / 阿里云 OSS / GitHub Pages 的成本与需要改动的代码量）。正文不再维护。
 
 > 这份清单是给人照着做的，每一步都有一个可以自己验证的结果。
 >
