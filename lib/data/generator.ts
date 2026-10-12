@@ -2,7 +2,13 @@ import { seededInt, seededPick, seededUnit } from './dateSeed'
 import { daysBetween } from './dates'
 import type { DayLog, ExerciseEntry, FoodEntry, FoodSource, MealSlot, UserGoal } from './types'
 
-type FoodTemplate = {
+/**
+ * 一份食物的营养模板，数值按 100 克计。
+ *
+ * 导出是为了让种子数据（lib/db/seed.ts）复用同一份数值建初始食物库——
+ * 否则「鸡胸肉盖饭 620 千卡」会在两处各写一遍，早晚对不上。
+ */
+export type FoodTemplate = {
   name: string
   calories: number
   protein: number
@@ -10,25 +16,25 @@ type FoodTemplate = {
   fat: number
 }
 
-const BREAKFAST: FoodTemplate[] = [
+export const BREAKFAST: FoodTemplate[] = [
   { name: '燕麦牛奶', calories: 380, protein: 18, carbs: 55, fat: 9 },
   { name: '豆浆鸡蛋', calories: 300, protein: 20, carbs: 22, fat: 14 },
   { name: '全麦三明治', calories: 420, protein: 22, carbs: 48, fat: 15 },
 ]
 
-const LUNCH: FoodTemplate[] = [
+export const LUNCH: FoodTemplate[] = [
   { name: '鸡胸肉盖饭', calories: 620, protein: 42, carbs: 70, fat: 14 },
   { name: '牛肉面', calories: 680, protein: 34, carbs: 88, fat: 18 },
   { name: '清蒸鱼套餐', calories: 540, protein: 40, carbs: 52, fat: 16 },
 ]
 
-const DINNER: FoodTemplate[] = [
+export const DINNER: FoodTemplate[] = [
   { name: '清炒时蔬 + 米饭', calories: 420, protein: 12, carbs: 68, fat: 8 },
   { name: '番茄鸡蛋面', calories: 480, protein: 20, carbs: 72, fat: 12 },
   { name: '鸡腿饭', calories: 560, protein: 32, carbs: 62, fat: 20 },
 ]
 
-const SNACK: FoodTemplate[] = [
+export const SNACK: FoodTemplate[] = [
   { name: '苹果', calories: 95, protein: 0, carbs: 25, fat: 0 },
   { name: '酸奶', calories: 130, protein: 8, carbs: 16, fat: 4 },
   { name: '坚果', calories: 200, protein: 6, carbs: 8, fat: 17 },
