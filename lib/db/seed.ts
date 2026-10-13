@@ -2,6 +2,7 @@ import { eq, inArray } from 'drizzle-orm'
 import type { FoodTemplate } from '../data/generator'
 import { BREAKFAST, DINNER, LUNCH, SNACK, generateDayLog, generateWeight } from '../data/generator'
 import { MOCK_GOAL, MOCK_PLAN, MOCK_USER, TODAY, datesWithRecords } from '../data/mock'
+import { DEMO_USER_EMAIL, DEMO_USER_ID } from './demo'
 import type { Db } from './index'
 import {
   exerciseEntries,
@@ -23,8 +24,10 @@ import {
  * 数据基线。
  */
 
-export const DEMO_USER_ID = 'demo-user'
-export const DEMO_USER_EMAIL = 'demo@fitchat.local'
+// 身份常量定义在 lib/db/demo.ts：运行时的页面代码也要用它们，
+// 不该为了拿两个常量而反向依赖这个种子脚本。这里再导出一次，
+// 是为了让既有调用点（scripts/seed.ts、seed.test.ts）不受影响。
+export { DEMO_USER_EMAIL, DEMO_USER_ID }
 
 export type SeedOptions = {
   /** 演示用户的邮箱；重复执行时按它定位并整体重建 */
