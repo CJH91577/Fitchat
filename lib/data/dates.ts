@@ -28,6 +28,19 @@ export function lastNDays(endKey: string, n: number): string[] {
   return Array.from({ length: n }, (_, i) => addDays(endKey, i - (n - 1)))
 }
 
+/**
+ * from..to（含两端）的升序日期序列；from 晚于 to 时返回空数组。
+ *
+ * 用于「把区间里的每一天都列出来」——预渲染某日详情页、按日遍历历史。
+ * 注意它只是**日期区间**，与「有记录的日期」不是一回事：区间内完全可能
+ * 一天什么都没记，那是另一种状态，界面要区别对待。
+ */
+export function dateRange(fromKey: string, toKey: string): string[] {
+  const span = daysBetween(fromKey, toKey)
+  if (span < 0) return []
+  return Array.from({ length: span + 1 }, (_, i) => addDays(fromKey, i))
+}
+
 // 周一为一周之首；月首之前的空位用 null 填充
 export function monthGrid(year: number, month: number): (string | null)[] {
   const first = new Date(year, month - 1, 1)

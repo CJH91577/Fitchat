@@ -1,18 +1,19 @@
 import { mkdirSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
-import { DEFAULT_DB_PATH, createDb } from '../lib/db/index'
+import { createDb, dbPath } from '../lib/db/index'
 import { seedDatabase } from '../lib/db/seed'
 
 // 先跑迁移，让 `npm run db:seed` 单独执行也能得到一个可用的库。
-mkdirSync(dirname(DEFAULT_DB_PATH), { recursive: true })
+const path = dbPath()
+mkdirSync(dirname(path), { recursive: true })
 
-const db = createDb()
+const db = createDb(path)
 migrate(db, { migrationsFolder: './drizzle' })
 
 const summary = seedDatabase(db)
 
-console.log(`种子数据已写入：${DEFAULT_DB_PATH}`)
+console.log(`种子数据已写入：${path}`)
 for (const [name, value] of Object.entries(summary)) {
   console.log(`  ${name.padEnd(16)} ${value}`)
 }

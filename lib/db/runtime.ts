@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs'
-import { DEFAULT_DB_PATH, type Db, createDb } from './index'
+import { type Db, createDb, dbPath } from './index'
 import { DEMO_USER_ID } from './demo'
 import { type DbUser, userById } from './queries'
 
@@ -14,7 +14,7 @@ import { type DbUser, userById } from './queries'
  * 按路径打开数据库。做成独立函数而不是塞进 getDb 里，是为了让它能被测试
  * 直接驱动（传 ':memory:' 或一个不存在的路径），而不必去动真实的库文件。
  */
-export function openDb(path: string = DEFAULT_DB_PATH): Db {
+export function openDb(path: string = dbPath()): Db {
   if (path !== ':memory:' && !existsSync(path)) {
     // 明确报错，而不是让 better-sqlite3 静默建一个空库，
     // 然后在一堆「no such table」里淹掉真正的原因。

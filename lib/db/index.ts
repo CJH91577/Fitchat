@@ -3,19 +3,23 @@ import { drizzle } from 'drizzle-orm/better-sqlite3'
 import * as schema from './schema'
 
 /**
- * 默认库文件位置。可用 DATABASE_PATH 覆盖——测试传 ':memory:'，
- * 部署时可以指到别的卷。
+ * 库文件位置。可用 DATABASE_PATH 覆盖——测试指到临时库，部署时可以指到别的卷。
+ *
+ * 做成函数而不是模块级常量：测试要在渲染之前把 DATABASE_PATH 指到一份种好
+ * 数据的临时库上，而模块级常量在 import 那一刻就被冻结了——ESM 的 import
+ * 先于文件里的任何语句执行，测试根本来不及设环境变量。
  */
-export const DEFAULT_DB_PATH = process.env.DATABASE_PATH ?? 'data/fitchat.db'
+export function dbPath(): string {
+  return process.env.DATABASE_PATH ?? 'data/fitchat.db'
+}
 
 /**
  * 打开一个数据库连接。
  *
- * 刻意不做成模块级的单例：脚本、测试与将来的请求处理都需要各自控制
- * 生命周期（测试要内存库、要能开完就关）。阶段 2 接入页面时再按运行时
- * 决定是复用连接还是每次开。
+ * 刻意不做成模块级的单例：脚本、测试与请求处理都需要各自控制生命周期
+ * （测试要内存库、要能开完就关）。页面侧复用同一个连接的事由 runtime.getDb 负责。
  */
-export function createDb(path: string = DEFAULT_DB_PATH) {
+export function createDb(path: string = dbPath()) {
   const sqlite = new Database(path)
 
   // SQLite 默认**不校验外键**——不显式打开的话，schema 里的 references()
