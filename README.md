@@ -1,8 +1,6 @@
 # Fitchat
 
-<!-- 新仓库建好后：把下面这行的地址换成你的仓库，并去掉注释
-![CI](https://github.com/<用户名>/<仓库名>/actions/workflows/ci.yml/badge.svg)
--->
+![CI](https://github.com/CJH91577/Fitchat/actions/workflows/ci.yml/badge.svg)
 
 移动优先的 H5 饮食与健身记录应用：记下每天吃了什么、练了什么，再看体重与热量盈余的变化。基于 Next.js + React + TypeScript，**无后端**，全部数据按日期确定性生成。
 
