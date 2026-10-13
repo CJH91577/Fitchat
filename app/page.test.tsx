@@ -3,42 +3,46 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, it, expect, vi } from 'vitest'
 import Home from './page'
-import { TODAY, weightFor, dayLogFor } from '@/lib/data/mock'
+import { TODAY, dayLogFor, weightFor } from '@/lib/data/mock'
 import { formatDayHeading } from '@/lib/data/dates'
+import { setupSeededDatabase } from '@/tests/seeded-db'
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/' }))
 
+// 页面从数据库读数据；期望值仍由生成器算，于是这里同时验证了迁移没有改变数字
+setupSeededDatabase()
+
 describe('首页', () => {
-  it('只有热量与运动两个圆环，不再显示蛋白质与碳水', () => {
-    render(<Home />)
+  it('只有热量与运动两个圆环，不再显示蛋白质与碳水', async () => {
+    render(await Home())
     expect(screen.getByText('热量')).toBeInTheDocument()
     expect(screen.getByText('运动')).toBeInTheDocument()
     expect(screen.queryByText('蛋白质')).not.toBeInTheDocument()
     expect(screen.queryByText('碳水')).not.toBeInTheDocument()
   })
 
-  it('净热量位于圆环圆心，且是全页唯一的大号数字', () => {
-    render(<Home />)
+  it('净热量位于圆环圆心，且是全页唯一的大号数字', async () => {
+    render(await Home())
     expect(screen.getByTestId('ring-center')).toBeInTheDocument()
     expect(screen.getByText('净热量')).toBeInTheDocument()
     expect(screen.getByTestId('hero-value')).toBeInTheDocument()
   })
 
-  it('体重卡的标签是「今日空腹体重」并含测量提示', () => {
-    render(<Home />)
+  it('体重卡的标签是「今日空腹体重」并含测量提示', async () => {
+    render(await Home())
     expect(screen.getByText('今日空腹体重')).toBeInTheDocument()
     expect(screen.getByText(/起床后、进食前测量/)).toBeInTheDocument()
     expect(screen.queryByText('最近体重')).not.toBeInTheDocument()
   })
 
-  it('体重显示的是今天的记录值', () => {
-    render(<Home />)
+  it('体重显示的是今天的记录值', async () => {
+    render(await Home())
     const today = weightFor(TODAY) as number
     expect(screen.getByText(`${today} kg`)).toBeInTheDocument()
   })
 
-  it('日期栏显示当天的日期与星期，而不是写死的文案', () => {
-    render(<Home />)
+  it('日期栏显示当天的日期与星期，而不是写死的文案', async () => {
+    render(await Home())
     expect(screen.getByText(formatDayHeading(TODAY))).toBeInTheDocument()
   })
 
@@ -54,15 +58,15 @@ describe('首页', () => {
     expect(css).not.toContain('#006300')
   })
 
-  it('今日饮食四餐都列出', () => {
-    render(<Home />)
+  it('今日饮食四餐都列出', async () => {
+    render(await Home())
     for (const slot of ['早餐', '午餐', '晚餐', '加餐']) {
       expect(screen.getByText(slot)).toBeInTheDocument()
     }
   })
 
-  it('AI 估算标记的数量与数据中含 AI 条目的餐次数一致', () => {
-    render(<Home />)
+  it('AI 估算标记的数量与数据中含 AI 条目的餐次数一致', async () => {
+    render(await Home())
     // 标记按餐次渲染：某餐只要含 AI 估算来源的条目就显示一个标记。
     // 期望值从数据层推导，而不是写死「至少有一个」。
     const day = dayLogFor(TODAY)
@@ -72,8 +76,8 @@ describe('首页', () => {
     expect(screen.queryAllByText('AI 估算')).toHaveLength(slotsWithAi.size)
   })
 
-  it('展示今天该练什么', () => {
-    render(<Home />)
+  it('展示今天该练什么', async () => {
+    render(await Home())
     expect(screen.getByText(/今天该练/)).toBeInTheDocument()
   })
 })

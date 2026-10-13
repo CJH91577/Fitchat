@@ -1,8 +1,13 @@
-import { MOCK_PLAN, TODAY } from '@/lib/data/mock'
+import { TODAY } from '@/lib/data/mock'
 import { WEEKDAY_LABELS, weekdayOf } from '@/lib/data/dates'
+import { planFor } from '@/lib/db/queries'
+import { getDb, getDemoUser } from '@/lib/db/runtime'
 import styles from './plan.module.css'
 
-export default function Plan() {
+export default async function Plan() {
+  const db = getDb()
+  const user = getDemoUser(db)
+  const plan = planFor(db, user.id)
   const todayWeekday = weekdayOf(TODAY)
 
   return (
@@ -10,7 +15,7 @@ export default function Plan() {
       <h1 className={styles.title}>训练计划</h1>
 
       <ul className={styles.days}>
-        {MOCK_PLAN.map((day) => {
+        {plan.map((day) => {
           const isToday = day.weekday === todayWeekday
           return (
             <li key={day.weekday} className={`${styles.day} ${isToday ? styles.today : ''}`}>

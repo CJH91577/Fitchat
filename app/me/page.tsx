@@ -1,10 +1,17 @@
 import Link from 'next/link'
-import { MOCK_GOAL, MOCK_USER, TODAY, weightFor } from '@/lib/data/mock'
+import { TODAY } from '@/lib/data/mock'
+import { goalFor, weightFor } from '@/lib/db/queries'
+import { getDb, getDemoUser } from '@/lib/db/runtime'
 import styles from './me.module.css'
 
 const DIRECTION_LABEL = { cut: '减脂', bulk: '增肌', maintain: '维持' } as const
 
-export default function Me() {
+export default async function Me() {
+  const db = getDb()
+  const user = getDemoUser(db)
+  const goal = goalFor(db, user.id)
+  const currentWeight = weightFor(db, user, TODAY)
+
   return (
     <main className={styles.page}>
       <h1 className={styles.title}>我的</h1>
@@ -14,50 +21,52 @@ export default function Me() {
         <ul className={styles.list}>
           <li className={styles.row}>
             <span className={styles.rowName}>身高</span>
-            <span className={`${styles.rowMeta} num-tabular`}>{MOCK_USER.heightCm} cm</span>
+            <span className={`${styles.rowMeta} num-tabular`}>{user.heightCm} cm</span>
           </li>
           <li className={styles.row}>
             <span className={styles.rowName}>年龄</span>
-            <span className={`${styles.rowMeta} num-tabular`}>{MOCK_USER.age}</span>
+            <span className={`${styles.rowMeta} num-tabular`}>{user.age}</span>
           </li>
           <li className={styles.row}>
             <span className={styles.rowName}>当前体重</span>
-            {/* null 只会在开始使用日期晚于今天时出现；保留判断以免渲染出字面量 null */}
-            <span className={`${styles.rowMeta} num-tabular`}>
-              {weightFor(TODAY) ?? '—'} kg
-            </span>
+            {/* null 只在「今天没有体重记录」时出现；保留判断以免渲染出字面量 null */}
+            <span className={`${styles.rowMeta} num-tabular`}>{currentWeight ?? '—'} kg</span>
           </li>
         </ul>
       </section>
 
       <section className={styles.card}>
         <h2 className={styles.cardTitle}>每日目标</h2>
-        <ul className={styles.list}>
-          <li className={styles.row}>
-            <span className={styles.rowName}>目标方向</span>
-            <span className={styles.rowMeta}>{DIRECTION_LABEL[MOCK_GOAL.direction]}</span>
-          </li>
-          <li className={styles.row}>
-            <span className={styles.rowName}>热量</span>
-            <span className={`${styles.rowMeta} num-tabular`}>{MOCK_GOAL.calories} 千卡</span>
-          </li>
-          <li className={styles.row}>
-            <span className={styles.rowName}>蛋白质</span>
-            <span className={`${styles.rowMeta} num-tabular`}>{MOCK_GOAL.protein} g</span>
-          </li>
-          <li className={styles.row}>
-            <span className={styles.rowName}>碳水</span>
-            <span className={`${styles.rowMeta} num-tabular`}>{MOCK_GOAL.carbs} g</span>
-          </li>
-          <li className={styles.row}>
-            <span className={styles.rowName}>脂肪</span>
-            <span className={`${styles.rowMeta} num-tabular`}>{MOCK_GOAL.fat} g</span>
-          </li>
-          <li className={styles.row}>
-            <span className={styles.rowName}>目标体重</span>
-            <span className={`${styles.rowMeta} num-tabular`}>{MOCK_GOAL.targetWeightKg} kg</span>
-          </li>
-        </ul>
+        {goal === null ? (
+          <p className={styles.empty}>还没有设定每日目标。</p>
+        ) : (
+          <ul className={styles.list}>
+            <li className={styles.row}>
+              <span className={styles.rowName}>目标方向</span>
+              <span className={styles.rowMeta}>{DIRECTION_LABEL[goal.direction]}</span>
+            </li>
+            <li className={styles.row}>
+              <span className={styles.rowName}>热量</span>
+              <span className={`${styles.rowMeta} num-tabular`}>{goal.calories} 千卡</span>
+            </li>
+            <li className={styles.row}>
+              <span className={styles.rowName}>蛋白质</span>
+              <span className={`${styles.rowMeta} num-tabular`}>{goal.protein} g</span>
+            </li>
+            <li className={styles.row}>
+              <span className={styles.rowName}>碳水</span>
+              <span className={`${styles.rowMeta} num-tabular`}>{goal.carbs} g</span>
+            </li>
+            <li className={styles.row}>
+              <span className={styles.rowName}>脂肪</span>
+              <span className={`${styles.rowMeta} num-tabular`}>{goal.fat} g</span>
+            </li>
+            <li className={styles.row}>
+              <span className={styles.rowName}>目标体重</span>
+              <span className={`${styles.rowMeta} num-tabular`}>{goal.targetWeightKg} kg</span>
+            </li>
+          </ul>
+        )}
       </section>
 
       <Link href="/plan" className={styles.link}>

@@ -1,18 +1,22 @@
 import HeroFigure from '@/components/HeroFigure'
 import RingGroup, { type RingSpec } from '@/components/RingGroup'
 import AiBadge from '@/components/AiBadge'
-import { MOCK_PLAN, MOCK_GOAL, TODAY, dayLogFor, weightFor, recentWeights } from '@/lib/data/mock'
+import { TODAY } from '@/lib/data/mock'
+import { formatDayHeading, formatMonthDay, weekdayOf } from '@/lib/data/dates'
 import { burnedCalories, netCalories, sumMacros } from '@/lib/data/selectors'
 import { MEAL_SLOT_LABEL, type MealSlot } from '@/lib/data/types'
-import { formatDayHeading, formatMonthDay, weekdayOf } from '@/lib/data/dates'
+import { dayLogFor, goalFor, planFor, weightSeries } from '@/lib/db/queries'
+import { getDb, getDemoUser } from '@/lib/db/runtime'
 import styles from './page.module.css'
 
 const SLOTS: MealSlot[] = ['breakfast', 'lunch', 'dinner', 'snack']
 
-export default function Home() {
-  const day = dayLogFor(TODAY)
+export default async function Home() {
+  const db = getDb()
+  const user = getDemoUser(db)
+  const day = dayLogFor(db, user, TODAY)
 
-  // TODAY 必然在用户使用范围内，因此这里不会是 null。
+  // 演示用户必然在「今天」之前开始使用，所以这里不会是 null。
   // 写成守卫而不是断言，是为了在数据层被改动时给出明确的空态而不是崩溃。
   if (day === null) {
     return (
@@ -22,24 +26,30 @@ export default function Home() {
     )
   }
 
+  // 还没设目标时给 0：RingGroup 会把 goal 为 0 的环画成「未设定」，
+  // 而不是画一个填满的环或算出 NaN。
+  const goal = goalFor(db, user.id)
+
   const macros = sumMacros(day.foods)
   const burned = burnedCalories(day)
   const net = netCalories(day)
 
   const rings: RingSpec[] = [
-    { kind: 'calories', label: '热量', value: macros.calories, goal: MOCK_GOAL.calories, unit: '千卡' },
-    { kind: 'exercise', label: '运动', value: burned, goal: MOCK_GOAL.exerciseCalories, unit: '千卡' },
+    { kind: 'calories', label: '热量', value: macros.calories, goal: goal?.calories ?? 0, unit: '千卡' },
+    { kind: 'exercise', label: '运动', value: burned, goal: goal?.exerciseCalories ?? 0, unit: '千卡' },
   ]
 
-  const weights = recentWeights(2)
-  const todayWeight = weightFor(TODAY)
-  const prevWeight = weights.length >= 2 ? weights[weights.length - 2].kg : null
+  // 体重：一次取出全部历史，再从里面挑出今天与「今天之前最近一次」。
+  // 分开两次查询会让「最近一次」在断记几天时退化成「昨天」。
+  const weights = weightSeries(db, user, user.startedAt, TODAY)
+  const todayWeight = weights.find((w) => w.date === TODAY)?.kg ?? null
+  const previousWeight = [...weights].reverse().find((w) => w.date < TODAY) ?? null
   const delta =
-    todayWeight !== null && prevWeight !== null
-      ? Math.round((todayWeight - prevWeight) * 10) / 10
+    todayWeight !== null && previousWeight !== null
+      ? Math.round((todayWeight - previousWeight.kg) * 10) / 10
       : null
 
-  const todayPlan = MOCK_PLAN.find((p) => p.weekday === weekdayOf(TODAY))
+  const todayPlan = planFor(db, user.id).find((p) => p.weekday === weekdayOf(TODAY))
 
   const slotCalories = (slot: MealSlot) =>
     day.foods.filter((f) => f.slot === slot).reduce((s, f) => s + f.totals.calories, 0)
@@ -144,10 +154,9 @@ export default function Home() {
         ) : (
           <p className={styles.empty}>
             今日未记录
-            {weights.length > 0 && (
+            {previousWeight !== null && (
               <span className={styles.lastWeight}>
-                （最近一次 {weights[weights.length - 1].kg} kg ·{' '}
-                {formatMonthDay(weights[weights.length - 1].date)}）
+                （最近一次 {previousWeight.kg} kg · {formatMonthDay(previousWeight.date)}）
               </span>
             )}
           </p>

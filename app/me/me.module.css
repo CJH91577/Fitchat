@@ -63,3 +63,10 @@
   font-size: 14px;
   text-decoration: none;
 }
+
+/* 空态：还没设过目标时用。与全站其他空态同一档（次要色、常规字号） */
+.empty {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 14px;
+}
