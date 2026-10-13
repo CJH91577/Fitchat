@@ -8,9 +8,9 @@ const DIRECTION_LABEL = { cut: '减脂', bulk: '增肌', maintain: '维持' } as
 
 export default async function Me() {
   const db = getDb()
-  const user = getDemoUser(db)
-  const goal = goalFor(db, user.id)
-  const currentWeight = weightFor(db, user, TODAY)
+  const user = await getDemoUser(db)
+  const goal = await goalFor(db, user.id)
+  const currentWeight = await weightFor(db, user, TODAY)
 
   return (
     <main className={styles.page}>

@@ -69,9 +69,9 @@ describe('日历页', () => {
     const date = `${TODAY.slice(0, 7)}-01`
 
     const db = getDb()
-    const user = getDemoUser(db)
-    const goal = goalFor(db, user.id)
-    const day = dayLogFor(db, user, date)
+    const user = await getDemoUser(db)
+    const goal = await goalFor(db, user.id)
+    const day = await dayLogFor(db, user, date)
     expect(day).not.toBeNull()
     expect(goal).not.toBeNull()
 

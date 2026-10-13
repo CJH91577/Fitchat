@@ -9,21 +9,23 @@ import styles from './trends.module.css'
 
 export default async function Trends() {
   const db = getDb()
-  const user = getDemoUser(db)
-  const goal = goalFor(db, user.id)
+  const user = await getDemoUser(db)
+  const goal = await goalFor(db, user.id)
 
   // 展示从开始使用至今的全部历史，由表格内部滚动浏览
   const dates = dateRange(user.startedAt, TODAY)
 
   // 一次查完整段体重序列，而不是逐日查 386 次
-  const kgByDate = new Map(
-    weightSeries(db, user, user.startedAt, TODAY).map((row) => [row.date, row.kg]),
-  )
+  const weights = await weightSeries(db, user, user.startedAt, TODAY)
+  const kgByDate = new Map(weights.map((row) => [row.date, row.kg]))
 
   const weightRows: WeightRow[] = []
   const surplusRows: SurplusRow[] = []
 
-  dates.forEach((date, i) => {
+  // 用 for 而不是 forEach：循环体里要 await（forEach 的回调里不能用 await）
+  for (let i = 0; i < dates.length; i += 1) {
+    const date = dates[i]
+
     const kg = kgByDate.get(date)
     if (kg !== undefined) {
       const prevKg = i > 0 ? kgByDate.get(dates[i - 1]) : undefined
@@ -36,11 +38,11 @@ export default async function Trends() {
 
     // 没有饮食记录的日子不放进盈余表：那天的「盈余」不是「没吃」，
     // 而是「没记」——按 0 减去目标算出的 −1800 会是一句假话。
-    const day = dayLogFor(db, user, date)
+    const day = await dayLogFor(db, user, date)
     if (day !== null && day.foods.length > 0 && goal !== null) {
       surplusRows.push({ date, surplus: calorieSurplus(day, goal) })
     }
-  })
+  }
 
   // 最近的日期在上
   weightRows.reverse()

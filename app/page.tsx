@@ -13,8 +13,8 @@ const SLOTS: MealSlot[] = ['breakfast', 'lunch', 'dinner', 'snack']
 
 export default async function Home() {
   const db = getDb()
-  const user = getDemoUser(db)
-  const day = dayLogFor(db, user, TODAY)
+  const user = await getDemoUser(db)
+  const day = await dayLogFor(db, user, TODAY)
 
   // 演示用户必然在「今天」之前开始使用，所以这里不会是 null。
   // 写成守卫而不是断言，是为了在数据层被改动时给出明确的空态而不是崩溃。
@@ -28,7 +28,7 @@ export default async function Home() {
 
   // 还没设目标时给 0：RingGroup 会把 goal 为 0 的环画成「未设定」，
   // 而不是画一个填满的环或算出 NaN。
-  const goal = goalFor(db, user.id)
+  const goal = await goalFor(db, user.id)
 
   const macros = sumMacros(day.foods)
   const burned = burnedCalories(day)
@@ -41,7 +41,7 @@ export default async function Home() {
 
   // 体重：一次取出全部历史，再从里面挑出今天与「今天之前最近一次」。
   // 分开两次查询会让「最近一次」在断记几天时退化成「昨天」。
-  const weights = weightSeries(db, user, user.startedAt, TODAY)
+  const weights = await weightSeries(db, user, user.startedAt, TODAY)
   const todayWeight = weights.find((w) => w.date === TODAY)?.kg ?? null
   const previousWeight = [...weights].reverse().find((w) => w.date < TODAY) ?? null
   const delta =
@@ -49,7 +49,8 @@ export default async function Home() {
       ? Math.round((todayWeight - previousWeight.kg) * 10) / 10
       : null
 
-  const todayPlan = planFor(db, user.id).find((p) => p.weekday === weekdayOf(TODAY))
+  // 注意括号：await 的优先级低于成员访问，写成 `await f().find()` 会先取 Promise 再调 find
+  const todayPlan = (await planFor(db, user.id)).find((p) => p.weekday === weekdayOf(TODAY))
 
   const slotCalories = (slot: MealSlot) =>
     day.foods.filter((f) => f.slot === slot).reduce((s, f) => s + f.totals.calories, 0)

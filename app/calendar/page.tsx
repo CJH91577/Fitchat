@@ -15,13 +15,13 @@ import styles from './calendar.module.css'
  */
 export default async function Calendar() {
   const db = getDb()
-  const user = getDemoUser(db)
-  const goal = goalFor(db, user.id)
+  const user = await getDemoUser(db)
+  const goal = await goalFor(db, user.id)
 
   // 约 390 天，每天两个布尔值——十几 KB，比趋势页那两张表小得多
   const dayResults: Record<string, DayResult> = {}
   for (const date of dateRange(user.startedAt, TODAY)) {
-    const day = dayLogFor(db, user, date)
+    const day = await dayLogFor(db, user, date)
     if (day === null) continue
     dayResults[date] = {
       // 还没有设目标时一律算未达成——用目标 0 去比会得出「吃了就超标」之类的假结论

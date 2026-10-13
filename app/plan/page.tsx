@@ -6,8 +6,8 @@ import styles from './plan.module.css'
 
 export default async function Plan() {
   const db = getDb()
-  const user = getDemoUser(db)
-  const plan = planFor(db, user.id)
+  const user = await getDemoUser(db)
+  const plan = await planFor(db, user.id)
   const todayWeekday = weekdayOf(TODAY)
 
   return (

@@ -21,9 +21,11 @@ import {
 } from './schema'
 
 /**
- * 读路径。这些函数替代了原先 lib/data/mock.ts 里那几个用生成器现算的版本，
- * 形状完全一致（还是 lib/data/types.ts 里的类型），差别只有一个：
- * 数据来自数据库，而不是按日期现算。
+ * 读路径。这一层是应用与数据库之间**唯一**的接口。
+ *
+ * 全部是 async：线上的 Cloudflare D1 是异步 API。本地与测试跑在
+ * lib/db/d1-shim 提供的兼容层上，签名一致——于是「本地能跑、线上另有一套
+ * 代码」这种情况不会发生。
  *
  * 有意不在这里引入「今天」的概念——查询只回答「库里有什么」。
  * 「那一天到了没有」是界面的事（见 selectors.isUpcoming）。
@@ -41,8 +43,8 @@ export type DbUser = {
   timezone: string
 }
 
-export function userById(db: Db, userId: string): DbUser | null {
-  const row = db.select().from(users).where(eq(users.id, userId)).get()
+export async function userById(db: Db, userId: string): Promise<DbUser | null> {
+  const row = await db.select().from(users).where(eq(users.id, userId)).get()
   if (!row) return null
   return {
     id: row.id,
@@ -55,8 +57,8 @@ export function userById(db: Db, userId: string): DbUser | null {
   }
 }
 
-export function goalFor(db: Db, userId: string): UserGoal | null {
-  const row = db.select().from(goals).where(eq(goals.userId, userId)).get()
+export async function goalFor(db: Db, userId: string): Promise<UserGoal | null> {
+  const row = await db.select().from(goals).where(eq(goals.userId, userId)).get()
   if (!row) return null
   return {
     direction: row.direction,
@@ -79,10 +81,10 @@ export function goalFor(db: Db, userId: string): UserGoal | null {
  * 把前两者合并会丢掉一个真实状态：曾经有一天没记东西，和当时还没注册，
  * 对用户是完全不同的两件事。
  */
-export function dayLogFor(db: Db, user: DbUser, date: string): DayLog | null {
+export async function dayLogFor(db: Db, user: DbUser, date: string): Promise<DayLog | null> {
   if (!isInRange(date, user.startedAt)) return null
 
-  const foodRows = db
+  const foodRows = await db
     .select()
     .from(foodEntries)
     .where(and(eq(foodEntries.userId, user.id), eq(foodEntries.date, date)))
@@ -103,7 +105,7 @@ export function dayLogFor(db: Db, user: DbUser, date: string): DayLog | null {
     },
   }))
 
-  const exerciseRows = db
+  const exerciseRows = await db
     .select()
     .from(exerciseEntries)
     .where(and(eq(exerciseEntries.userId, user.id), eq(exerciseEntries.date, date)))
@@ -112,7 +114,7 @@ export function dayLogFor(db: Db, user: DbUser, date: string): DayLog | null {
 
   const strengthIds = exerciseRows.filter((row) => row.kind === 'strength').map((row) => row.id)
   const setRows = strengthIds.length
-    ? db
+    ? await db
         .select()
         .from(strengthSets)
         .where(inArray(strengthSets.entryId, strengthIds))
@@ -137,8 +139,8 @@ export function dayLogFor(db: Db, user: DbUser, date: string): DayLog | null {
   return { date, foods, exercises }
 }
 
-export function weightFor(db: Db, user: DbUser, date: string): number | null {
-  const row = db
+export async function weightFor(db: Db, user: DbUser, date: string): Promise<number | null> {
+  const row = await db
     .select({ kg: weightEntries.kg })
     .from(weightEntries)
     .where(and(eq(weightEntries.userId, user.id), eq(weightEntries.date, date)))
@@ -147,7 +149,12 @@ export function weightFor(db: Db, user: DbUser, date: string): number | null {
 }
 
 /** from..to（含两端）之间实际存在的体重记录，按日期升序 */
-export function weightSeries(db: Db, user: DbUser, from: string, to: string): WeightEntry[] {
+export async function weightSeries(
+  db: Db,
+  user: DbUser,
+  from: string,
+  to: string,
+): Promise<WeightEntry[]> {
   return db
     .select({ date: weightEntries.date, kg: weightEntries.kg })
     .from(weightEntries)
@@ -163,8 +170,8 @@ export function weightSeries(db: Db, user: DbUser, from: string, to: string): We
 }
 
 /** 一周七天的训练计划，按星期升序（1 = 周一 … 7 = 周日） */
-export function planFor(db: Db, userId: string): PlanDay[] {
-  const days = db
+export async function planFor(db: Db, userId: string): Promise<PlanDay[]> {
+  const days = await db
     .select()
     .from(planDays)
     .where(eq(planDays.userId, userId))
@@ -173,7 +180,7 @@ export function planFor(db: Db, userId: string): PlanDay[] {
 
   if (days.length === 0) return []
 
-  const items = db
+  const items = await db
     .select()
     .from(planItems)
     .where(

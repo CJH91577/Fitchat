@@ -12,10 +12,12 @@ import Database from 'better-sqlite3'
  *   client.prepare(sql) → stmt.bind(...) → stmt.run() / stmt.all() → { results } / stmt.raw()
  *   client.batch([...])；事务直接用 begin / commit / rollback 走 SQL
  *
- * 内部是「同步执行 + 对外返回 Promise」两层：better-sqlite3 的事务要求
- * 同步回调，若把 async 回调交给 sqlite.transaction，事务边界会失效
- * （回调一返回就提交，而真正的语句还没跑）。所以真正干活的是同步版本，
- * 异步只是外壳。
+ * 三处与 better-sqlite3 的真实差异被刻意抹平（都在测试里钉着）：
+ *   1. 非查询语句调 .all()：better-sqlite3 抛错，D1 的 batch 两类语句都吃 → 按 reader 分流
+ *   2. 事务：better-sqlite3 要求同步回调，交给它一个 async 回调会在语句执行前就提交
+ *      → 内部同步执行，只把结果包成 Promise
+ *   3. SQL 错误：better-sqlite3 在 prepare() 时同步抛，D1 是远端调用、错误从 Promise 里抛
+ *      → 捕获同步错误，改从 Promise 抛出，否则调用方的 try/catch 在两边行为不一致
  */
 export type D1StatementLike = {
   bind(...params: unknown[]): D1StatementLike
@@ -53,11 +55,9 @@ function metaOf(changes: number, lastRowId: number | bigint): Record<string, unk
 
 /** 兼容层内部的同步句柄：batch 需要它才能在同一个事务里跑 */
 const SYNC_EXEC = Symbol('d1ShimSyncExec')
-const SYNC_RUN = Symbol('d1ShimSyncRun')
 
 type SyncCapable = {
   [SYNC_EXEC]?: () => unknown[]
-  [SYNC_RUN]?: () => number
 }
 
 export function createD1Shim(
@@ -71,17 +71,34 @@ export function createD1Shim(
   if (options.wal !== false && path !== ':memory:') sqlite.pragma('journal_mode = WAL')
 
   function prepare(sql: string): D1StatementLike {
-    const statement = sqlite.prepare(sql)
+    let statement: Database.Statement | undefined
+    let prepareError: unknown
+
+    try {
+      statement = sqlite.prepare(sql)
+    } catch (error) {
+      // 差异 3：同步的 prepare 错误改从 Promise 里抛（见文件头说明）
+      prepareError = error
+    }
+
     let params: unknown[] = []
 
     // 同步执行：真正干活的地方
-    const execRows = () => statement.all(...(params as never[])) as unknown[]
-    const execRun = () => Number(statement.run(...(params as never[])).changes)
+    const execRows = (): unknown[] => {
+      if (prepareError) throw prepareError
+      return statement!.all(...(params as never[])) as unknown[]
+    }
+    const execRun = (): number => {
+      if (prepareError) throw prepareError
+      return Number(statement!.run(...(params as never[])).changes)
+    }
 
-    // batch 会同时收到查询与写入两类语句，而 better-sqlite3 对非查询语句调
+    // 差异 1：batch 会同时收到查询与写入两类语句，better-sqlite3 对非查询语句调
     // .all() 会直接抛「This statement does not return data」——真 D1 不会。
-    // 按 statement.reader 分流，消掉这处差异。
-    const execSync = () => (statement.reader ? execRows() : (execRun(), []))
+    const execSync = (): unknown[] => {
+      if (prepareError) throw prepareError
+      return statement!.reader ? execRows() : (execRun(), [])
+    }
 
     const api: D1StatementLike & SyncCapable = {
       bind(...values: unknown[]) {
@@ -91,9 +108,11 @@ export function createD1Shim(
       run: async () => ({ success: true, results: [], meta: metaOf(execRun(), 0) }),
       all: async () => ({ success: true, results: execRows(), meta: metaOf(0, 0) }),
       // D1 的 raw() 返回「每行是值数组」，drizzle 的 values 模式用它
-      raw: async () => statement.raw().all(...(params as never[])),
+      raw: async () => {
+        if (prepareError) throw prepareError
+        return statement!.raw().all(...(params as never[]))
+      },
       [SYNC_EXEC]: execSync,
-      [SYNC_RUN]: execRun,
     }
 
     return api
@@ -103,7 +122,7 @@ export function createD1Shim(
     prepare,
     async batch(statements: D1StatementLike[]) {
       // 真 D1 的 batch 在一个事务里顺序执行；这里照做，否则出错时留下的状态会不同。
-      // 注意不是 sqlite.transaction(async ...)——那样事务会在语句执行前就提交。
+      // 差异 2：不能用 sqlite.transaction(async …)——那样事务会在语句执行前就提交。
       return sqlite.transaction(() =>
         statements.map((item) => (item as unknown as SyncCapable)[SYNC_EXEC]?.() ?? []),
       )()

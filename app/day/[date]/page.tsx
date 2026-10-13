@@ -30,9 +30,9 @@ function isValidDateKey(value: string): boolean {
  * 「今天」在构建时确定，所以覆盖范围会随每次构建往前推进——这也是需要
  * 定时重建的原因之一（见 DEPLOY.md）。
  */
-export function generateStaticParams(): { date: string }[] {
+export async function generateStaticParams(): Promise<{ date: string }[]> {
   const db = getDb()
-  const user = getDemoUser(db)
+  const user = await getDemoUser(db)
   return dateRange(user.startedAt, TODAY).map((date) => ({ date }))
 }
 
@@ -55,11 +55,11 @@ export default async function DayDetail({
   }
 
   const db = getDb()
-  const user = getDemoUser(db)
+  const user = await getDemoUser(db)
 
   // dayLogFor 返回 null 表示「那一天用户还没开始用」，与「那天没记东西」
   //（返回空数组）是两种状态，界面上说法也不同。
-  const day = dayLogFor(db, user, date)
+  const day = await dayLogFor(db, user, date)
   if (day === null) {
     return (
       <main className={styles.page}>
@@ -73,12 +73,12 @@ export default async function DayDetail({
 
   // 还没设目标时给 0：RingGroup 会把 goal 为 0 的环画成「未设定」，
   // 而不是画一个填满的环或算出 NaN。
-  const goal = goalFor(db, user.id)
+  const goal = await goalFor(db, user.id)
 
   const macros = sumMacros(day.foods)
   const burned = burnedCalories(day)
   const net = netCalories(day)
-  const weight = weightFor(db, user, date)
+  const weight = await weightFor(db, user, date)
 
   const rings: RingSpec[] = [
     { kind: 'calories', label: '热量', value: macros.calories, goal: goal?.calories ?? 0, unit: '千卡' },

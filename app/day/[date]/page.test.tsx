@@ -12,8 +12,8 @@ vi.mock('next/navigation', () => ({ usePathname: () => '/day/2026-09-22' }))
 setupSeededDatabase()
 
 describe('某日详情页的预渲染范围', () => {
-  it('覆盖从开始使用日期到今天的每一天，且不重复', () => {
-    const dates = generateStaticParams().map((p) => p.date)
+  it('覆盖从开始使用日期到今天的每一天，且不重复', async () => {
+    const dates = (await generateStaticParams()).map((p) => p.date)
     const expected = dateRange(MOCK_USER.startedAt, TODAY)
 
     expect(dates).toEqual(expected)
@@ -23,7 +23,7 @@ describe('某日详情页的预渲染范围', () => {
   })
 
   it('首尾两天都能渲染出真实内容，而不是空态', async () => {
-    const dates = generateStaticParams().map((p) => p.date)
+    const dates = (await generateStaticParams()).map((p) => p.date)
 
     for (const date of [dates[0], dates[dates.length - 1]]) {
       const ui = await DayDetail({ params: Promise.resolve({ date }) })

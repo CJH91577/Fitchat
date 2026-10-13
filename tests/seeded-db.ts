@@ -1,10 +1,9 @@
-import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterAll } from 'vitest'
-import { createDb } from '../lib/db/index'
-import { closeDb } from '../lib/db/runtime'
+import { afterAll, beforeAll } from 'vitest'
+import { applyMigrations } from '../lib/db/migrate'
+import { closeDb, openLocalDb } from '../lib/db/runtime'
 import { seedDatabase } from '../lib/db/seed'
 
 /**
@@ -24,10 +23,15 @@ export function setupSeededDatabase(): void {
 
   process.env.DATABASE_PATH = path
 
-  const db = createDb(path)
-  migrate(db, { migrationsFolder: './drizzle' })
-  seedDatabase(db)
-  db.$client.close()
+  beforeAll(async () => {
+    applyMigrations(path)
+    const { db, close } = openLocalDb(path)
+    try {
+      await seedDatabase(db)
+    } finally {
+      close()
+    }
+  })
 
   afterAll(() => {
     // 先关掉页面复用的那个连接：Windows 上打开着的文件删不掉，

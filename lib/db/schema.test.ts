@@ -1,7 +1,10 @@
-import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
+import Database from 'better-sqlite3'
 import { getTableConfig } from 'drizzle-orm/sqlite-core'
-import { describe, expect, it } from 'vitest'
-import { createDb } from './index'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { applyMigrations } from './migrate'
 import {
   exerciseEntries,
   foodEntries,
@@ -25,6 +28,9 @@ import {
  *
  * 少了这道关卡，两者的漂移不会有任何症状——构建通过、lint 通过、
  * 页面照常跑，直到某天线上查询报「no such column」。
+ *
+ * 内省直接开一个 better-sqlite3 连接做：这里验的是「迁移建出来的表结构」，
+ * 与运行期用哪个驱动无关。
  */
 
 const TABLES = {
@@ -41,9 +47,20 @@ const TABLES = {
   planItems,
 }
 
-const db = createDb(':memory:')
-migrate(db, { migrationsFolder: './drizzle' })
-const sqlite = db.$client
+const tempDir = mkdtempSync(join(tmpdir(), 'fitchat-schema-'))
+const dbFile = join(tempDir, 'schema.db')
+
+let sqlite: InstanceType<typeof Database>
+
+beforeAll(() => {
+  applyMigrations(dbFile)
+  sqlite = new Database(dbFile, { readonly: true })
+})
+
+afterAll(() => {
+  sqlite.close()
+  rmSync(tempDir, { recursive: true, force: true })
+})
 
 type ColumnInfo = { name: string; notnull: 0 | 1; pk: number }
 
@@ -53,15 +70,17 @@ function columnsOf(table: string): ColumnInfo[] {
 }
 
 function indexNamesOf(table: string): string[] {
-  return (sqlite.prepare(`PRAGMA index_list(${table})`).all() as { name: string }[]).map((r) => r.name)
+  return (sqlite.prepare(`PRAGMA index_list(${table})`).all() as { name: string }[]).map(
+    (row) => row.name,
+  )
 }
 
 function tableNamesInDb(): string[] {
-  const rows = sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as {
-    name: string
-  }[]
+  const rows = sqlite
+    .prepare("SELECT name FROM sqlite_master WHERE type = 'table'")
+    .all() as { name: string }[]
   return rows
-    .map((r) => r.name)
+    .map((row) => row.name)
     .filter((name) => !name.startsWith('sqlite_') && !name.startsWith('__drizzle'))
     .sort()
 }

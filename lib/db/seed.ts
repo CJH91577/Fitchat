@@ -23,6 +23,8 @@ import {
  * 逻辑写成纯函数（接 db、返回统计）而不是直接写在 CLI 里，是为了能被测试
  * 用内存库完整跑一遍——种子脚本跑不起来的话，后面接页面时就没有可信的
  * 数据基线。
+ *
+ * 全异步：线上是 D1。本地与测试跑在 d1-shim 上，签名一致。
  */
 
 // 身份常量定义在 lib/db/demo.ts：运行时的页面代码也要用它们，
@@ -71,26 +73,30 @@ export function starterFoodId(index: number): string {
  */
 const INSERT_BATCH = 100
 
-function insertInBatches<T>(rows: T[], run: (batch: T[]) => void): void {
+async function insertInBatches<T>(
+  rows: T[],
+  run: (batch: T[]) => Promise<unknown>,
+): Promise<void> {
   for (let i = 0; i < rows.length; i += INSERT_BATCH) {
-    run(rows.slice(i, i + INSERT_BATCH))
+    await run(rows.slice(i, i + INSERT_BATCH))
   }
 }
 
-export function seedDatabase(db: Db, options: SeedOptions = {}): SeedSummary {
+export async function seedDatabase(db: Db, options: SeedOptions = {}): Promise<SeedSummary> {
   const email = options.email ?? DEMO_USER_EMAIL
   const from = options.from ?? MOCK_USER.startedAt
   const to = options.to ?? TODAY
   const now = new Date(options.now ?? Date.now())
 
-  return db.transaction((tx) => {
+  return db.transaction(async (tx) => {
     // 幂等：先按邮箱删掉演示用户。外键都带 on delete cascade，
     // 他的目标、记录与计划会一并清掉，所以可以反复执行。
-    tx.delete(users).where(eq(users.email, email)).run()
+    await tx.delete(users).where(eq(users.email, email)).run()
 
     const userId = DEMO_USER_ID
 
-    tx.insert(users)
+    await tx
+      .insert(users)
       .values({
         id: userId,
         email,
@@ -105,7 +111,8 @@ export function seedDatabase(db: Db, options: SeedOptions = {}): SeedSummary {
       })
       .run()
 
-    tx.insert(goals)
+    await tx
+      .insert(goals)
       .values({
         userId,
         direction: MOCK_GOAL.direction,
@@ -126,7 +133,8 @@ export function seedDatabase(db: Db, options: SeedOptions = {}): SeedSummary {
     // 食物库是共享的，不随用户级联删除，所以重复执行时它还在——必须先按
     // 确定性 id 清掉我们自己那批（不碰用户自行新增的食物），否则会撞上
     // foods.name 的唯一索引。
-    tx.delete(foods)
+    await tx
+      .delete(foods)
       .where(
         inArray(
           foods.id,
@@ -135,7 +143,8 @@ export function seedDatabase(db: Db, options: SeedOptions = {}): SeedSummary {
       )
       .run()
 
-    tx.insert(foods)
+    await tx
+      .insert(foods)
       .values(
         STARTER_FOODS.map((food, index) => ({
           id: starterFoodId(index),
@@ -153,11 +162,13 @@ export function seedDatabase(db: Db, options: SeedOptions = {}): SeedSummary {
     let itemCount = 0
     for (const day of MOCK_PLAN) {
       const planDayId = `plan-day-${day.weekday}`
-      tx.insert(planDays)
+      await tx
+        .insert(planDays)
         .values({ id: planDayId, userId, weekday: day.weekday, theme: day.theme })
         .run()
       if (day.items.length > 0) {
-        tx.insert(planItems)
+        await tx
+          .insert(planItems)
           .values(
             day.items.map((item, index) => ({
               id: `${planDayId}-item-${index}`,
@@ -237,10 +248,10 @@ export function seedDatabase(db: Db, options: SeedOptions = {}): SeedSummary {
       })
     }
 
-    insertInBatches(foodRows, (batch) => tx.insert(foodEntries).values(batch).run())
-    insertInBatches(exerciseRows, (batch) => tx.insert(exerciseEntries).values(batch).run())
-    insertInBatches(setRows, (batch) => tx.insert(strengthSets).values(batch).run())
-    insertInBatches(weightRows, (batch) => tx.insert(weightEntries).values(batch).run())
+    await insertInBatches(foodRows, (batch) => tx.insert(foodEntries).values(batch).run())
+    await insertInBatches(exerciseRows, (batch) => tx.insert(exerciseEntries).values(batch).run())
+    await insertInBatches(setRows, (batch) => tx.insert(strengthSets).values(batch).run())
+    await insertInBatches(weightRows, (batch) => tx.insert(weightEntries).values(batch).run())
 
     return {
       users: 1,
