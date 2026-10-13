@@ -72,4 +72,28 @@ describe('日历页', () => {
     expect(screen.queryAllByRole('link')).toHaveLength(0)
     expect(screen.getByText(/还没有开始使用/)).toBeInTheDocument()
   })
+
+  it('晚于今天的日子不渲染成链接，今天本身仍然可点', () => {
+    // 回归测试。数据层对未来的日期照样算得出内容（dayLogFor 只看「不早于
+    // 开始使用日期」），于是日历曾把整个月的每一天都渲染成链接；而构建时只
+    // 预渲染到今天，指向未来的详情页从未存在——线上实测 31 个链接里 19 个
+    // 是死链，点进去就是 404。
+    render(<Calendar />)
+
+    const hrefs = screen
+      .queryAllByRole('link')
+      .map((el) => el.getAttribute('href') ?? '')
+      .filter((href) => href.startsWith('/day/'))
+
+    expect(hrefs.length).toBeGreaterThan(0)
+    expect(hrefs.filter((href) => href.slice('/day/'.length) > TODAY)).toEqual([])
+    // 边界：今天必须还能点进去，否则「今天」自己就成了死格
+    expect(hrefs).toContain(`/day/${TODAY}`)
+  })
+
+  it('整体还没到的月份显示一句说明，而不是一整屏灰格子', () => {
+    render(<Calendar initialYear={2099} initialMonth={1} />)
+    expect(screen.queryAllByRole('link')).toHaveLength(0)
+    expect(screen.getByText(/还没有到/)).toBeInTheDocument()
+  })
 })

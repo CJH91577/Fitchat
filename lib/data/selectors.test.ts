@@ -7,6 +7,7 @@ import {
   isCalorieOnTarget,
   isExerciseOnTarget,
   isInRange,
+  isUpcoming,
 } from './selectors'
 import type { DayLog, FoodEntry, UserGoal } from './types'
 
@@ -178,5 +179,30 @@ describe('isInRange', () => {
   it('开始使用当天及以后为 true', () => {
     expect(isInRange('2025-09-22', '2025-09-22')).toBe(true)
     expect(isInRange('2026-09-22', '2025-09-22')).toBe(true)
+  })
+})
+
+describe('isUpcoming', () => {
+  it('晚于今天为 true', () => {
+    expect(isUpcoming('2026-09-23', '2026-09-22')).toBe(true)
+  })
+
+  it('今天本身不算还没到', () => {
+    // 边界：今天必须仍然算「已到」，否则日历里当天会变成点不进去的死格
+    expect(isUpcoming('2026-09-22', '2026-09-22')).toBe(false)
+  })
+
+  it('过去的日子为 false', () => {
+    expect(isUpcoming('2026-09-21', '2026-09-22')).toBe(false)
+  })
+
+  it('跨月与跨年都算得准', () => {
+    expect(isUpcoming('2026-10-01', '2026-09-30')).toBe(true)
+    expect(isUpcoming('2027-01-01', '2026-12-31')).toBe(true)
+  })
+
+  it('与 isInRange 相互独立——「开始使用之前」的日子不是「还没到」', () => {
+    expect(isInRange('2025-09-01', '2025-09-22')).toBe(false)
+    expect(isUpcoming('2025-09-01', '2026-09-22')).toBe(false)
   })
 })

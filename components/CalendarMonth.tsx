@@ -4,10 +4,18 @@ import styles from './CalendarMonth.module.css'
 const WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日']
 
 /**
- * 一天的三种状态：达成、未达成、以及这一天还没开始使用。
- * 最后一种不是前两种的任何一种，界面必须能区分。
+ * 一天的四种状态：达成、未达成，以及两种不可点的日子——
+ * 「开始使用之前」（notStarted）与「还没到的将来」（upcoming）。
+ *
+ * 后两种都不是「未达成」：未达成是有记录但没达标，会长成有底色、有灰色
+ * 空轨道的样子；这两种是压根没有那一天的内容，界面必须能区分。
  */
-export type DayStatus = { calories: boolean; exercise: boolean; notStarted?: boolean }
+export type DayStatus = {
+  calories: boolean
+  exercise: boolean
+  notStarted?: boolean
+  upcoming?: boolean
+}
 
 export type CalendarMonthProps = {
   cells: (string | null)[]
@@ -41,15 +49,17 @@ export default function CalendarMonth({ cells, statusByDate, today }: CalendarMo
           const status = statusByDate[date] ?? { calories: false, exercise: false }
           const flags = [status.calories, status.exercise]
 
-          // 尚未开始使用：不可点（点进去只会看到一句空话），也不画读条
-          // （画了就与「当天未达成」长得一样）。
-          if (status.notStarted) {
+          // 两种不可点的日子共用同一份视觉（不可点、不画读条），但无障碍名称
+          // 分开：不画读条是因为画了就与「当天未达成」长得一样；不可点是因为
+          // 点进去要么只有一句空话（尚未开始使用），要么直接是 404（还没到）。
+          if (status.notStarted || status.upcoming) {
+            const notStarted = Boolean(status.notStarted)
             return (
               <div
                 key={date}
-                className={`${styles.cell} ${styles.notStarted}`}
-                data-testid="not-started-cell"
-                aria-label={`${date}，尚未开始使用`}
+                className={`${styles.cell} ${styles.inactive}`}
+                data-testid={notStarted ? 'not-started-cell' : 'upcoming-cell'}
+                aria-label={`${date}，${notStarted ? '尚未开始使用' : '还没到'}`}
               >
                 <span className={`${styles.dayNum} num-tabular`}>{dayNum}</span>
               </div>

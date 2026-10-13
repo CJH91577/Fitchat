@@ -118,13 +118,37 @@ describe('CalendarMonth', () => {
     const emptyRule = /\.emptyCell\s*\{[^}]*\}/.exec(css)?.[0] ?? ''
     expect(emptyRule).not.toContain('border:')
 
-    const notStartedRule = /\.notStarted\s*\{[^}]*\}/.exec(css)?.[0] ?? ''
-    expect(notStartedRule).toContain('border-color: transparent')
+    const inactiveRule = /\.inactive\s*\{[^}]*\}/.exec(css)?.[0] ?? ''
+    expect(inactiveRule).toContain('border-color: transparent')
   })
 
   it('每个日期格的无障碍名称说明了各项指标是否达成', () => {
     renderMonth()
     // 图例去掉之后，达成与否只靠颜色与填充表达；无障碍名称是替文字读者保留的通道
     expect(screen.getByRole('link', { name: /2026-09-02，热量未达成，运动达成/ })).toBeInTheDocument()
+  })
+
+  it('还没到的日期不可点、不画读条，且无障碍名称与「尚未开始使用」不同', () => {
+    // 回归测试：这类日子曾经被渲染成链接，而构建时只为今天之前的每一天
+    // 生成了页面，点进去是 404。
+    const { container } = render(
+      <CalendarMonth
+        cells={['2025-09-01', '2026-09-23']}
+        statusByDate={{
+          '2025-09-01': { calories: false, exercise: false, notStarted: true },
+          '2026-09-23': { calories: false, exercise: false, upcoming: true },
+        }}
+        today="2026-09-22"
+      />,
+    )
+
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
+    expect(barsOf(container)).toHaveLength(0)
+    // 两者视觉相同，但读屏读者需要区分「还没到」和「当时还没开始用」
+    expect(screen.getByTestId('not-started-cell')).toHaveAttribute(
+      'aria-label',
+      '2025-09-01，尚未开始使用',
+    )
+    expect(screen.getByTestId('upcoming-cell')).toHaveAttribute('aria-label', '2026-09-23，还没到')
   })
 })

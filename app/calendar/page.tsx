@@ -4,7 +4,7 @@ import { useState } from 'react'
 import CalendarMonth, { type DayStatus } from '@/components/CalendarMonth'
 import { monthGrid } from '@/lib/data/dates'
 import { MOCK_GOAL, MOCK_USER, TODAY, dayLogFor } from '@/lib/data/mock'
-import { isCalorieOnTarget, isExerciseOnTarget, isInRange } from '@/lib/data/selectors'
+import { isCalorieOnTarget, isExerciseOnTarget, isInRange, isUpcoming } from '@/lib/data/selectors'
 import styles from './calendar.module.css'
 
 export default function Calendar({
@@ -23,13 +23,26 @@ export default function Calendar({
 
   const cells = monthGrid(year, month)
 
-  // 该月是否整体早于用户的开始使用日期
+  // 该月是否整体早于开始使用日期、或整体晚于今天。
+  // 两种情况都渲染成一句说明而不是一张空网格——一整屏灰格子看起来像坏掉了。
+  const firstCell = cells.find((c) => c !== null) ?? null
   const lastCell = [...cells].reverse().find((c) => c !== null) ?? null
   const monthIsOutOfRange = lastCell !== null && !isInRange(lastCell, MOCK_USER.startedAt)
+  const monthIsUpcoming = firstCell !== null && isUpcoming(firstCell, TODAY)
 
   const statusByDate: Record<string, DayStatus> = {}
   for (const date of cells) {
     if (!date) continue
+
+    // 未来的日期要最先判掉。数据层对「晚于今天」的日子照样能算出内容——
+    // dayLogFor 只判断「不早于开始使用日期」——但那些内容不该出现在界面上，
+    // 尤其不能渲染成链接：构建时只预渲染到今天，「今天之后」的详情页从未
+    // 存在过，点进去只会是 404。实测过：整个月 31 个链接里有 19 个是死链。
+    if (isUpcoming(date, TODAY)) {
+      statusByDate[date] = { calories: false, exercise: false, upcoming: true }
+      continue
+    }
+
     const day = dayLogFor(date)
     statusByDate[date] =
       day === null
@@ -76,6 +89,8 @@ export default function Calendar({
 
       {monthIsOutOfRange ? (
         <p className={styles.empty}>这个月还没有开始使用。</p>
+      ) : monthIsUpcoming ? (
+        <p className={styles.empty}>这个月还没有到。</p>
       ) : (
         // 这层包裹负责吃掉剩余高度，网格才能铺满——宽高都由它决定
         <div className={styles.calendarArea}>

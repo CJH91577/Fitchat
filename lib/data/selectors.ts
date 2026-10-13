@@ -49,3 +49,12 @@ export function isExerciseOnTarget(day: DayLog, goal: UserGoal): boolean {
 export function isInRange(date: string, startedAt: string): boolean {
   return daysBetween(startedAt, date) >= 0
 }
+
+// 该日期是否还没到（晚于「今天」）。
+// 与 isInRange 相对：isInRange 管「用户开始使用了没有」，这个管「那一天到了没有」。
+// 两者都不成立才轮到「已经过去但没有记录」——日历要把这三种情况分开：
+// 未来的日子既不该画成「当天未达成」，更不该变成可点的链接，
+// 因为构建时只为今天之前的每一天生成了页面。
+export function isUpcoming(date: string, today: string): boolean {
+  return daysBetween(today, date) > 0
+}

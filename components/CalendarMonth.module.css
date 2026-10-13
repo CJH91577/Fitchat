@@ -61,13 +61,16 @@ a.cell {
   border-width: 2px;
 }
 
-/* 尚未开始使用：不要底色也不要可见的框，读起来像「这里什么都没有」 */
-.notStarted {
+/* 不可点的日子：不要底色也不要可见的框，读起来像「这里什么都没有」。
+   「开始使用之前」与「还没到的将来」共用这一档——它们在视觉上没有区别
+   （都不该长得像「当天未达成」，那是有底色、有灰色空轨道的格子），
+   区别只体现在无障碍名称里。 */
+.inactive {
   background: transparent;
   border-color: transparent;
 }
 
-.notStarted .dayNum {
+.inactive .dayNum {
   color: var(--text-muted);
   opacity: 0.45;
 }
