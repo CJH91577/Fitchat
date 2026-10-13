@@ -1,7 +1,8 @@
 import { eq, inArray } from 'drizzle-orm'
 import type { FoodTemplate } from '../data/generator'
 import { BREAKFAST, DINNER, LUNCH, SNACK, generateDayLog, generateWeight } from '../data/generator'
-import { MOCK_GOAL, MOCK_PLAN, MOCK_USER, TODAY, datesWithRecords } from '../data/mock'
+import { MOCK_GOAL, MOCK_PLAN, MOCK_USER, datesWithRecords } from '../data/mock'
+import { TODAY } from '../data/today'
 import { DEMO_USER_EMAIL, DEMO_USER_ID } from './demo'
 import type { Db } from './index'
 import {

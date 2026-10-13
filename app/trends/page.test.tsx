@@ -1,7 +1,8 @@
 import { render, screen } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import Trends from './page'
-import { MOCK_GOAL, MOCK_USER, TODAY, dayLogFor, weightFor } from '@/lib/data/mock'
+import { MOCK_GOAL, MOCK_USER, dayLogFor, weightFor } from '@/lib/data/mock'
+import { TODAY } from '@/lib/data/today'
 import { calorieSurplus } from '@/lib/data/selectors'
 import { setupSeededDatabase } from '@/tests/seeded-db'
 

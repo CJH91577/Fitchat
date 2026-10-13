@@ -1,4 +1,4 @@
-import { TODAY } from '@/lib/data/mock'
+import { TODAY } from '@/lib/data/today'
 import { WEEKDAY_LABELS, weekdayOf } from '@/lib/data/dates'
 import { planFor } from '@/lib/db/queries'
 import { getDb, getDemoUser } from '@/lib/db/runtime'

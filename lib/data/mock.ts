@@ -1,23 +1,20 @@
-import { addDays, daysBetween, todayKey } from './dates'
+import { addDays, daysBetween } from './dates'
 import { generateDayLog, generateWeight } from './generator'
 import { isInRange } from './selectors'
+import { TODAY } from './today'
 import type { DayLog, PlanDay, UserGoal, WeightEntry } from './types'
 
 /**
- * 演示中的「今天」。
+ * 演示数据的夹具，以及生成器的**参考实现**。
  *
- * 由**构建时**确定一次，而不是每次渲染现算：静态导出后没有服务端，
- * 「今天」只能冻在构建那一刻；而且服务端与浏览器必须拿到同一个值，
- * 否则客户端组件（日历页）在浏览器里重新求值会与预渲染结果不符。
+ * 页面已经全部改读数据库（见 lib/db/queries.ts），所以这里只剩两件事：
+ *   1. MOCK_* 常量——种子脚本靠它把库建出来（lib/db/seed.ts）；
+ *   2. 下面那几个按日期现算的读函数——种子与测试拿它当参照物：
+ *      「数据库里读出来的某一天」必须与「这里算出来的那一天」逐字段一致，
+ *      那条断言是整次迁移的安全垫。
  *
- * NEXT_PUBLIC_TODAY 由 next.config.ts 在构建时注入（两端都会内联成同一个
- * 字面量）。这里保留 fallback 是为了测试环境——测试直接读不到那个变量，
- * 于是退回到「此刻的真实日期」。
- *
- * 代价：日期随构建时间冻结。由每晚的定时重建刷新
- * （见 .github/workflows/nightly-rebuild.yml）。
+ * 「今天」不在这里，它在 lib/data/today.ts——那是演示时钟，不是数据。
  */
-export const TODAY = process.env.NEXT_PUBLIC_TODAY || todayKey()
 
 export const MOCK_USER = {
   name: '演示用户',

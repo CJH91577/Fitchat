@@ -1,6 +1,6 @@
 import WeightTable, { type WeightRow } from '@/components/WeightTable'
 import SurplusTable, { type SurplusRow } from '@/components/SurplusTable'
-import { TODAY } from '@/lib/data/mock'
+import { TODAY } from '@/lib/data/today'
 import { dateRange } from '@/lib/data/dates'
 import { calorieSurplus } from '@/lib/data/selectors'
 import { dayLogFor, goalFor, weightSeries } from '@/lib/db/queries'

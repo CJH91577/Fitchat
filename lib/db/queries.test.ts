@@ -5,12 +5,12 @@ import {
   MOCK_GOAL,
   MOCK_PLAN,
   MOCK_USER,
-  TODAY,
   dayLogFor as generatedDayLogFor,
   datesWithRecords,
   weightFor as generatedWeightFor,
   weightSeries as generatedWeightSeries,
 } from '../data/mock'
+import { TODAY } from '../data/today'
 import { DEMO_USER_EMAIL, DEMO_USER_ID } from './demo'
 import { type Db, createDb } from './index'
 import {

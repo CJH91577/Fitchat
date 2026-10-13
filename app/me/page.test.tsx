@@ -1,7 +1,8 @@
 import { render, screen } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import Me from './page'
-import { MOCK_GOAL, TODAY, weightFor } from '@/lib/data/mock'
+import { MOCK_GOAL, weightFor } from '@/lib/data/mock'
+import { TODAY } from '@/lib/data/today'
 import { setupSeededDatabase } from '@/tests/seeded-db'
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/me' }))

@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest'
 import {
-  TODAY,
   MOCK_USER,
   MOCK_GOAL,
   MOCK_PLAN,
@@ -10,6 +9,7 @@ import {
   datesWithRecords,
   recentWeights,
 } from './mock'
+import { TODAY } from './today'
 import { calorieSurplus, isInRange } from './selectors'
 import { addDays, daysBetween, todayKey } from './dates'
 

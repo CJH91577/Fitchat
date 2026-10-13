@@ -1,7 +1,7 @@
 import HeroFigure from '@/components/HeroFigure'
 import RingGroup, { type RingSpec } from '@/components/RingGroup'
 import AiBadge from '@/components/AiBadge'
-import { TODAY } from '@/lib/data/mock'
+import { TODAY } from '@/lib/data/today'
 import { formatDayHeading, formatMonthDay, weekdayOf } from '@/lib/data/dates'
 import { burnedCalories, netCalories, sumMacros } from '@/lib/data/selectors'
 import { MEAL_SLOT_LABEL, type MealSlot } from '@/lib/data/types'

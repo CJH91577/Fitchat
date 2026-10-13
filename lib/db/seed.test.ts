@@ -2,7 +2,15 @@ import { and, count, eq, isNull } from 'drizzle-orm'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { describe, expect, it } from 'vitest'
 import { generateDayLog } from '../data/generator'
-import { MOCK_GOAL, MOCK_PLAN, MOCK_USER, TODAY, datesWithRecords, dayLogFor, weightFor } from '../data/mock'
+import {
+  MOCK_GOAL,
+  MOCK_PLAN,
+  MOCK_USER,
+  datesWithRecords,
+  dayLogFor,
+  weightFor,
+} from '../data/mock'
+import { TODAY } from '../data/today'
 import { burnedCalories, sumMacros } from '../data/selectors'
 import type { ExerciseEntry, FoodEntry } from '../data/types'
 import { type Db, createDb } from './index'

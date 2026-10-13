@@ -1,7 +1,8 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import DayDetail, { generateStaticParams } from './page'
-import { MOCK_USER, TODAY } from '@/lib/data/mock'
+import { MOCK_USER } from '@/lib/data/mock'
+import { TODAY } from '@/lib/data/today'
 import { dateRange } from '@/lib/data/dates'
 import { setupSeededDatabase } from '@/tests/seeded-db'
 

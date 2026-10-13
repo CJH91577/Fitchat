@@ -1,5 +1,5 @@
 import CalendarView, { type DayResult } from '@/components/CalendarView'
-import { TODAY } from '@/lib/data/mock'
+import { TODAY } from '@/lib/data/today'
 import { dateRange } from '@/lib/data/dates'
 import { isCalorieOnTarget, isExerciseOnTarget } from '@/lib/data/selectors'
 import { dayLogFor, goalFor } from '@/lib/db/queries'

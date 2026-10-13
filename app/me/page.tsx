@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { TODAY } from '@/lib/data/mock'
+import { TODAY } from '@/lib/data/today'
 import { goalFor, weightFor } from '@/lib/db/queries'
 import { getDb, getDemoUser } from '@/lib/db/runtime'
 import styles from './me.module.css'
