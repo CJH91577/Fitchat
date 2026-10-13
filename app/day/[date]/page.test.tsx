@@ -1,14 +1,19 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import DayDetail, { generateStaticParams } from './page'
-import { MOCK_USER, TODAY, datesWithRecords } from '@/lib/data/mock'
+import { MOCK_USER, TODAY } from '@/lib/data/mock'
+import { dateRange } from '@/lib/data/dates'
+import { setupSeededDatabase } from '@/tests/seeded-db'
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/day/2026-09-22' }))
+
+// 页面现在从数据库读数据，先准备一份种子库并把 DATABASE_PATH 指过去
+setupSeededDatabase()
 
 describe('某日详情页的预渲染范围', () => {
   it('覆盖从开始使用日期到今天的每一天，且不重复', () => {
     const dates = generateStaticParams().map((p) => p.date)
-    const expected = datesWithRecords(MOCK_USER.startedAt, TODAY)
+    const expected = dateRange(MOCK_USER.startedAt, TODAY)
 
     expect(dates).toEqual(expected)
     expect(dates[0]).toBe(MOCK_USER.startedAt)

@@ -34,10 +34,21 @@ git push -u origin main
 | Project name | `fitchat`（**全局唯一**，它决定 `https://fitchat.pages.dev`；被占用就换，如 `fitchat-demo`） |
 | Production branch | `main` |
 | Framework preset | `Next.js (Static HTML Export)` |
-| Build command | `npx next build`（选预设后自动带出） |
+| Build command | **改成 `npm run build`**（预设给的是 `npx next build`，不能用——原因见下） |
 | Build directory | `out`（选预设后自动带出） |
 | Root directory (advanced) | **留空** |
 | Environment variables | **全部留空**（本项目不需要任何变量） |
+
+> **为什么 Build command 必须是 `npm run build`，而不是预设默认的 `npx next build`**
+>
+> 页面在**构建期**就从 SQLite 读数据（见 `lib/db/queries.ts`），所以构建时库文件必须存在；
+> 而库文件 `data/fitchat.db` 是 gitignore 的，仓库里没有它。
+>
+> 本仓库的 `build` 脚本因此是 `tsx scripts/seed.ts && next build`：先用确定性的种子脚本
+> 把库建出来，再构建。预设默认的 `npx next build` 会跳过播种，于是构建期读库直接失败。
+>
+> 种子是确定性的（以日期为种子），所以每次构建得到的是同一个库——构建可复现，
+> 线上演示站的数字也不会因为重建而跳动。
 
 然后 **Save and Deploy**，首次构建约 1–3 分钟。
 

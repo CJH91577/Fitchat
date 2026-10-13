@@ -33,6 +33,16 @@ export function getDb(): Db {
   return (cached ??= openDb())
 }
 
+/**
+ * 关掉复用中的连接并清掉缓存。页面代码不需要调用它，但测试与脚本需要——
+ * Windows 上「打开着的文件删不掉」，测试结束时想清掉临时库目录，
+ * 就必须先把连接关掉。
+ */
+export function closeDb(): void {
+  cached?.$client.close()
+  cached = undefined
+}
+
 export function getDemoUser(db: Db = getDb()): DbUser {
   const user = userById(db, DEMO_USER_ID)
   if (!user) {

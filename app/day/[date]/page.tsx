@@ -2,10 +2,12 @@ import Link from 'next/link'
 import HeroFigure from '@/components/HeroFigure'
 import RingGroup, { type RingSpec } from '@/components/RingGroup'
 import AiBadge from '@/components/AiBadge'
-import { MOCK_GOAL, MOCK_USER, TODAY, datesWithRecords, dayLogFor, weightFor } from '@/lib/data/mock'
+import { TODAY } from '@/lib/data/mock'
+import { dateRange, formatDayHeading } from '@/lib/data/dates'
 import { burnedCalories, netCalories, sumMacros } from '@/lib/data/selectors'
 import { MEAL_SLOT_LABEL, type MealSlot } from '@/lib/data/types'
-import { formatDayHeading } from '@/lib/data/dates'
+import { dayLogFor, goalFor, weightFor } from '@/lib/db/queries'
+import { getDb, getDemoUser } from '@/lib/db/runtime'
 import styles from './day.module.css'
 
 const SLOTS: MealSlot[] = ['breakfast', 'lunch', 'dinner', 'snack']
@@ -19,14 +21,19 @@ function isValidDateKey(value: string): boolean {
  * 预渲染从开始使用日期到今天的每一天。
  *
  * 这些页面本来就完全由日期决定、内容不随请求变化，没必要每次请求现算。
- * 更实际的理由是：将来切到静态导出（output: 'export'）时没有服务端，
+ * 更实际的理由是：切到静态导出（output: 'export'）后没有服务端，
  * 所有路径必须在构建时就列出来，否则它们会直接 404。
  *
+ * 范围取自**数据库里**的 startedAt——它已经是用户自身的属性，
+ * 不再是写死的常量。
+ *
  * 「今天」在构建时确定，所以覆盖范围会随每次构建往前推进——这也是需要
- * 定时重建的原因之一（见 .github/workflows/nightly-rebuild.yml）。
+ * 定时重建的原因之一（见 DEPLOY.md）。
  */
 export function generateStaticParams(): { date: string }[] {
-  return datesWithRecords(MOCK_USER.startedAt, TODAY).map((date) => ({ date }))
+  const db = getDb()
+  const user = getDemoUser(db)
+  return dateRange(user.startedAt, TODAY).map((date) => ({ date }))
 }
 
 export default async function DayDetail({
@@ -47,7 +54,12 @@ export default async function DayDetail({
     )
   }
 
-  const day = dayLogFor(date)
+  const db = getDb()
+  const user = getDemoUser(db)
+
+  // dayLogFor 返回 null 表示「那一天用户还没开始用」，与「那天没记东西」
+  //（返回空数组）是两种状态，界面上说法也不同。
+  const day = dayLogFor(db, user, date)
   if (day === null) {
     return (
       <main className={styles.page}>
@@ -59,14 +71,18 @@ export default async function DayDetail({
     )
   }
 
+  // 还没设目标时给 0：RingGroup 会把 goal 为 0 的环画成「未设定」，
+  // 而不是画一个填满的环或算出 NaN。
+  const goal = goalFor(db, user.id)
+
   const macros = sumMacros(day.foods)
   const burned = burnedCalories(day)
   const net = netCalories(day)
-  const weight = weightFor(date)
+  const weight = weightFor(db, user, date)
 
   const rings: RingSpec[] = [
-    { kind: 'calories', label: '热量', value: macros.calories, goal: MOCK_GOAL.calories, unit: '千卡' },
-    { kind: 'exercise', label: '运动', value: burned, goal: MOCK_GOAL.exerciseCalories, unit: '千卡' },
+    { kind: 'calories', label: '热量', value: macros.calories, goal: goal?.calories ?? 0, unit: '千卡' },
+    { kind: 'exercise', label: '运动', value: burned, goal: goal?.exerciseCalories ?? 0, unit: '千卡' },
   ]
 
   return (
