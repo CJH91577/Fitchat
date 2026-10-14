@@ -21,11 +21,28 @@
 }
 
 .cardHead {
-  margin-bottom: 12px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
 }
 
 .cardTitle {
   margin: 0;
   font-size: 15px;
   font-weight: 600;
+}
+
+/* 表的窗口写在这里，而不是让人从行数去猜 */
+.cardMeta {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/* 结论行：先说方向，再看下面的明细 */
+.summary {
+  margin: 0 0 12px;
+  color: var(--text-secondary);
+  font-size: 13px;
 }
