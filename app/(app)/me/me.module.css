@@ -70,3 +70,20 @@
   color: var(--text-muted);
   font-size: 14px;
 }
+
+/*
+ * 「退出登录」是一个 <button>（提交表单，真正注销会话），不是链接，
+ * 所以要显式把它还原成 .link 的样子：按钮默认带边框、背景与系统字体。
+ */
+.linkButton {
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-tile);
+  background: var(--surface-card);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}

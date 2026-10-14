@@ -51,3 +51,59 @@
   font-size: 12px;
   text-align: center;
 }
+
+/* 登录 / 注册两个形态的切换。用 aria-pressed 表达选中，与首次引导页一致 */
+.tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.tab {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-tile);
+  background: var(--surface-card);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.tabActive {
+  border-color: var(--text-primary);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* 错误用文字说清是哪一项不对，而不是一个红框——见规格 5.3 / 8.x */
+.error {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+/* 演示入口与真实登录分开：它是一个明确的例外，不该长得像主流程 */
+.demo {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-hairline);
+}
+
+.secondaryButton {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-tile);
+  background: transparent;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}

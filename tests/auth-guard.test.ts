@@ -3,6 +3,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { readCode, repoPath, walk } from './source'
 import AppLayout from '@/app/(app)/layout'
 import Trends from '@/app/(app)/trends/page'
+import Login from '@/app/login/page'
 import { requireUser } from '@/lib/auth/current-user'
 import { redirectTarget } from '@/tests/next-navigation-mock'
 import { setSignedIn, setupSeededDatabase } from '@/tests/seeded-db'
@@ -94,6 +95,22 @@ describe('每个读库的页面都必须自带守卫', () => {
 
   it('外壳里有兜底的那一道守卫', () => {
     expect(readCode(join(appDir, '(app)', 'layout.tsx'))).toContain('await requireUser()')
+  })
+})
+
+describe('登录页：唯一公开的页面', () => {
+  it('未登录时能看到登录表单', async () => {
+    setSignedIn(false)
+    try {
+      expect(await Login()).toBeTruthy()
+    } finally {
+      setSignedIn(true)
+    }
+  })
+
+  it('已登录时被送回首页（否则会看到「进入」按钮，点下去只是再建一个会话）', async () => {
+    setSignedIn(true)
+    await expectRedirect(() => Login(), '/')
   })
 })
 

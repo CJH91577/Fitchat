@@ -13,6 +13,7 @@ import {
   exerciseEntries,
   foodEntries,
   goals,
+  inviteCodes,
   planDays,
   planItems,
   strengthSets,
@@ -36,16 +37,21 @@ import {
 export type DbUser = {
   id: string
   email: string
-  heightCm: number
-  age: number
-  sex: 'male' | 'female'
+  /**
+   * 资料三件套**可以为空**：注册只要邮箱 + 口令（邀请码是唯一门槛），
+   * 身高/年龄/性别是注册之后的首次引导才填的。界面必须把 null 说成
+   * 「未填写」，而不是渲染一个字面量的 null 或一个编出来的数字。
+   */
+  heightCm: number | null
+  age: number | null
+  sex: 'male' | 'female' | null
   startedAt: string
   timezone: string
 }
 
-export async function userById(db: Db, userId: string): Promise<DbUser | null> {
-  const row = await db.select().from(users).where(eq(users.id, userId)).get()
-  if (!row) return null
+type UserRow = typeof users.$inferSelect
+
+function toDbUser(row: UserRow): DbUser {
   return {
     id: row.id,
     email: row.email,
@@ -55,6 +61,61 @@ export async function userById(db: Db, userId: string): Promise<DbUser | null> {
     startedAt: row.startedAt,
     timezone: row.timezone,
   }
+}
+
+export async function userById(db: Db, userId: string): Promise<DbUser | null> {
+  const row = await db.select().from(users).where(eq(users.id, userId)).get()
+  return row ? toDbUser(row) : null
+}
+
+/**
+ * 按邮箱取用户（登录用）。
+ *
+ * 查的是**规范化之后**的邮箱：存的时候是小写去空格（见 lib/auth/accounts.ts），
+ * 查的时候也必须是同一种形式，否则 Alice@x.com 与 alice@x.com 会变成两个账号，
+ * 而从用户那边看这两者没有任何区别。
+ */
+export async function userByEmail(db: Db, email: string): Promise<DbUser | null> {
+  const row = await db.select().from(users).where(eq(users.email, email)).get()
+  return row ? toDbUser(row) : null
+}
+
+export type InviteCodeRow = {
+  code: string
+  /** 备注发给谁了，便于回收没用掉的码 */
+  note: string | null
+  usedByUserId: string | null
+  usedAt: Date | null
+}
+
+export async function inviteCodeFor(db: Db, code: string): Promise<InviteCodeRow | null> {
+  const row = await db.select().from(inviteCodes).where(eq(inviteCodes.code, code)).get()
+  if (!row) return null
+  return {
+    code: row.code,
+    note: row.note,
+    usedByUserId: row.usedByUserId,
+    usedAt: row.usedAt,
+  }
+}
+
+/**
+ * 登录校验专用：只取「谁的、什么散列」，不取别的。
+ *
+ * 单独一个函数、而不是把 passwordHash 塞进 DbUser，是为了让口令散列**只在
+ * 登录这一条路径上出现**：页面拿到的用户对象里根本没有它，也就没法失手渲染出来。
+ * 查询层返回一个带密码的「用户」才是最容易被误用的形状。
+ */
+export async function credentialsByEmail(
+  db: Db,
+  email: string,
+): Promise<{ userId: string; passwordHash: string | null } | null> {
+  const row = await db
+    .select({ userId: users.id, passwordHash: users.passwordHash })
+    .from(users)
+    .where(eq(users.email, email))
+    .get()
+  return row ?? null
 }
 
 export async function goalFor(db: Db, userId: string): Promise<UserGoal | null> {

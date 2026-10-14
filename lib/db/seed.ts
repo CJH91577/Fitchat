@@ -3,7 +3,7 @@ import type { FoodTemplate } from '../data/generator'
 import { BREAKFAST, DINNER, LUNCH, SNACK, generateDayLog, generateWeight } from '../data/generator'
 import { MOCK_GOAL, MOCK_PLAN, MOCK_USER, datesWithRecords } from '../data/mock'
 import { today } from '../data/today'
-import { DEMO_USER_EMAIL, DEMO_USER_ID } from './demo'
+import { DEMO_INVITE_CODES, DEMO_USER_EMAIL, DEMO_USER_ID } from './demo'
 import type { Db } from './index'
 import {
   exerciseEntries,
@@ -16,6 +16,7 @@ import {
   users,
   weightEntries,
 } from './schema'
+import { createInviteCodes } from './writes'
 
 /**
  * 把演示数据写进库里。
@@ -35,6 +36,12 @@ export { DEMO_USER_EMAIL, DEMO_USER_ID }
 export type SeedOptions = {
   /** 演示用户的邮箱；重复执行时按它定位并整体重建 */
   email?: string
+  /**
+   * 演示账号的口令散列。种子脚本自己不散列口令（那是 lib/auth 的事），
+   * 由调用方算好传进来——scrypt 要几十毫秒，而它必须在事务外面完成。
+   * 传 null（默认）表示这个账号没有口令，登不进去。
+   */
+  passwordHash?: string | null
   /** 记录范围的起始日，默认取演示用户开始使用的日期 */
   from?: string
   /** 记录范围的结束日（含），默认取「今天」 */
@@ -101,7 +108,7 @@ export async function seedDatabase(db: Db, options: SeedOptions = {}): Promise<S
   const to = options.to ?? today()
   const now = new Date(options.now ?? Date.now())
 
-  return db.transaction(async (tx) => {
+  const summary = await db.transaction(async (tx) => {
     // 幂等：先按邮箱删掉演示用户。外键都带 on delete cascade，
     // 他的目标、记录与计划会一并清掉，所以可以反复执行。
     await tx.delete(users).where(eq(users.email, email)).run()
@@ -113,8 +120,9 @@ export async function seedDatabase(db: Db, options: SeedOptions = {}): Promise<S
       .values({
         id: userId,
         email,
-        // 演示用户没有凭据：登录逻辑必须显式拒绝 password_hash 为空的行
-        passwordHash: null,
+        // 口令散列由调用方算好传进来；不传就是「没有凭据」，
+        // 登录逻辑必须显式拒绝这种账号（见 lib/auth/password.ts 的 verifyPassword）
+        passwordHash: options.passwordHash ?? null,
         heightCm: MOCK_USER.heightCm,
         age: MOCK_USER.age,
         sex: MOCK_USER.sex,
@@ -278,4 +286,14 @@ export async function seedDatabase(db: Db, options: SeedOptions = {}): Promise<S
       weightEntries: weightRows.length,
     }
   })
+
+  // 邀请码在事务**外面**写，而且冲突就不动：它与演示数据无关，重复播种
+  // 不该把已经用掉的码重置回未使用——那等于凭空多出一次注册机会。
+  await createInviteCodes(
+    db,
+    DEMO_INVITE_CODES.map((code) => ({ code, note: '随演示数据附送，公开' })),
+    now,
+  )
+
+  return summary
 }

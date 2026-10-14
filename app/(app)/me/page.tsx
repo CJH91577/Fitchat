@@ -1,7 +1,8 @@
 import Link from 'next/link'
+import { signOutAction } from '@/lib/auth/actions'
+import { requireUser } from '@/lib/auth/current-user'
 import { today } from '@/lib/data/today'
 import { goalFor, weightFor } from '@/lib/db/queries'
-import { requireUser } from '@/lib/auth/current-user'
 import { getDb } from '@/lib/db/runtime'
 import styles from './me.module.css'
 
@@ -28,11 +29,17 @@ export default async function Me() {
         <ul className={styles.list}>
           <li className={styles.row}>
             <span className={styles.rowName}>身高</span>
-            <span className={`${styles.rowMeta} num-tabular`}>{user.heightCm} cm</span>
+            {/* 资料可以为空：注册只要邮箱与口令，身高/年龄是首次引导里才补的，
+                补之前这里要说「未填写」，不能渲染 null 也不能编一个数 */}
+            <span className={`${styles.rowMeta} num-tabular`}>
+              {user.heightCm === null ? '未填写' : `${user.heightCm} cm`}
+            </span>
           </li>
           <li className={styles.row}>
             <span className={styles.rowName}>年龄</span>
-            <span className={`${styles.rowMeta} num-tabular`}>{user.age}</span>
+            <span className={`${styles.rowMeta} num-tabular`}>
+              {user.age === null ? '未填写' : user.age}
+            </span>
           </li>
           <li className={styles.row}>
             <span className={styles.rowName}>当前体重</span>
@@ -79,9 +86,14 @@ export default async function Me() {
       <Link href="/plan" className={styles.link}>
         训练计划
       </Link>
-      <Link href="/login" className={styles.link}>
-        退出登录
-      </Link>
+
+      {/* 退出登录是**一次真正的注销**：Server Action 删掉库里的会话行再清 Cookie。
+          这里以前是一个指向 /login 的链接——那只是换了页面，会话还是活的。 */}
+      <form action={signOutAction}>
+        <button type="submit" className={styles.linkButton}>
+          退出登录
+        </button>
+      </form>
     </main>
   )
 }

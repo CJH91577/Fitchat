@@ -23,9 +23,16 @@ export const users = sqliteTable('users', {
    * 绝不能把「没有密码」当成「无需密码」。
    */
   passwordHash: text('password_hash'),
-  heightCm: integer('height_cm').notNull(),
-  age: integer('age').notNull(),
-  sex: text('sex', { enum: ['male', 'female'] }).notNull(),
+  /**
+   * 资料三件套（身高/年龄/性别）**允许为空**。
+   *
+   * 注册只要邮箱 + 口令（邀请码是唯一门槛），资料是注册之后的「首次引导」
+   * 才补的——算每日目标要用到它们，而那时才第一次需要。把它们设成 NOT NULL
+   * 就等于逼注册表单要么多问三个字段、要么先塞一组假数字，两条路都不诚实。
+   */
+  heightCm: integer('height_cm'),
+  age: integer('age'),
+  sex: text('sex', { enum: ['male', 'female'] }),
   /**
    * 用户开始使用的日期。早于它的日期没有数据——这与「当天有记录但内容为空」
    * 是两种不同状态，界面需要区别对待（见 lib/data/selectors.ts 的 isInRange）。

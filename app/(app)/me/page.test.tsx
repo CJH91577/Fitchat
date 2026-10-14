@@ -42,4 +42,14 @@ describe('我的页', () => {
     expect(screen.getByText(`${todayWeight} kg`)).toBeInTheDocument()
     expect(screen.getByText(`${MOCK_GOAL.targetWeightKg} kg`)).toBeInTheDocument()
   })
+
+  it('退出登录是一个真注销动作，不是指向登录页的链接', async () => {
+    render(await Me())
+    // 以前这里是一个 <a href="/login">：换了页面而已，会话还是活的，
+    // 后退一页就又是登录状态。现在它必须是提交表单的按钮，
+    // 交给 Server Action 删掉库里的会话行再清 Cookie。
+    const button = screen.getByRole('button', { name: '退出登录' })
+    expect(button).toHaveAttribute('type', 'submit')
+    expect(screen.queryByRole('link', { name: '退出登录' })).not.toBeInTheDocument()
+  })
 })

@@ -2,8 +2,9 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll } from 'vitest'
+import { hashPassword } from '../lib/auth/password'
 import { createSession } from '../lib/auth/session'
-import { DEMO_USER_ID } from '../lib/db/demo'
+import { DEMO_PASSWORD, DEMO_USER_ID } from '../lib/db/demo'
 import { applyMigrations } from '../lib/db/migrate'
 import { closeDb, openLocalDb } from '../lib/db/runtime'
 import { seedDatabase } from '../lib/db/seed'
@@ -37,7 +38,8 @@ export function setupSeededDatabase(): void {
     applyMigrations(path)
     const { db, close } = openLocalDb(path)
     try {
-      await seedDatabase(db)
+      // 演示账号带上口令，与线上播种出来的那份一致（见 lib/db/demo.ts）
+      await seedDatabase(db, { passwordHash: await hashPassword(DEMO_PASSWORD) })
       sessionToken = (await createSession(db, DEMO_USER_ID)).token
     } finally {
       close()
