@@ -21,6 +21,10 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV PORT=3000
+# Next 的 standalone server 默认绑到 HOSTNAME，而在容器里 HOSTNAME 是容器 ID——
+# 于是容器内用 127.0.0.1 连不上自己，健康检查会一直报 unhealthy（实测过）。
+# 显式绑 0.0.0.0：容器内的健康检查与容器外的端口映射都能连。
+ENV HOSTNAME=0.0.0.0
 # 数据库落在挂载的数据卷上：重建容器不丢数据。
 # 首次启动时应用会自己建库并播种（见 instrumentation.ts 与 lib/db/bootstrap.ts）。
 ENV DATABASE_PATH=/data/fitchat.db

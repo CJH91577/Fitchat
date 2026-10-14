@@ -21,9 +21,13 @@
 ```bash
 git clone <你的仓库地址> fitchat
 cd fitchat
+mkdir -p data
+sudo chown -R 10001:10001 data     # 见下方说明，这一步不能省
 docker compose up -d --build
-docker compose logs -f          # 看到 Ready 即可
+docker compose logs -f             # 看到 Ready 即可
 ```
+
+> **为什么必须 chown**：容器以非 root 用户（uid 10001）运行，而 `./data` 是 Docker 在宿主机上以 root 创建的。不把目录交给 10001，应用就打不开数据库文件，日志里是 `SQLITE_CANTOPEN: unable to open database file`，页面全是 500。这一步是实测踩出来的。
 
 首次启动会**多花几秒**：应用在建库并播种（数据覆盖「开始使用日 → 今天 + 90 天」，约 1800 条饮食记录）。
 
