@@ -1,103 +1,47 @@
-'use client'
+import { requireUser } from '@/lib/auth/current-user'
+import { weekdayOf } from '@/lib/data/dates'
+import { today } from '@/lib/data/today'
+import { dayLogFor, planFor } from '@/lib/db/queries'
+import { getDb } from '@/lib/db/runtime'
+import WorkoutForm from './WorkoutForm'
+import type { PlanHint, TodayExercise } from './types'
 
-import { useRef, useState } from 'react'
-import styles from './new.module.css'
+/**
+ * 记录运动页。
+ *
+ * 服务端只做两件事：取出**今天**该练什么（训练计划里今天那一行）与今天已经
+ * 记了什么。计划只当预填用——用户实际做几组、多重，由他自己填。
+ */
+export const dynamic = 'force-dynamic'
 
-type Mode = 'cardio' | 'strength'
+export default async function NewWorkout() {
+  const db = getDb()
+  const user = await requireUser(db)
+  const date = today()
 
-type SetRow = { id: number; weightKg: string; reps: string }
+  const [plan, day] = await Promise.all([planFor(db, user.id), dayLogFor(db, user, date)])
 
-export default function NewWorkout() {
-  const [mode, setMode] = useState<Mode>('strength')
-  const [sets, setSets] = useState<SetRow[]>([
-    { id: 1, weightKg: '60', reps: '10' },
-  ])
-  const nextId = useRef(2)
+  const todayPlan = plan.find((day) => day.weekday === weekdayOf(date))
+  const planHint: PlanHint | null =
+    todayPlan && todayPlan.items.length > 0
+      ? {
+          theme: todayPlan.theme,
+          items: todayPlan.items.map((item) => ({
+            name: item.name,
+            sets: item.sets,
+            reps: item.reps,
+          })),
+        }
+      : null
 
-  const addSet = () =>
-    setSets((prev) => [...prev, { id: nextId.current++, weightKg: '', reps: '' }])
+  const entries: TodayExercise[] = (day?.exercises ?? []).map((exercise) => ({
+    id: exercise.id,
+    kind: exercise.kind,
+    name: exercise.name,
+    minutes: exercise.minutes ?? null,
+    setCount: exercise.sets?.length ?? 0,
+    caloriesBurned: exercise.caloriesBurned,
+  }))
 
-  const removeSet = (id: number) => setSets((prev) => prev.filter((s) => s.id !== id))
-
-  // 计划内容只作预填，用户可任意修改——记录反映实际发生的，不是计划的
-  const updateSet = (id: number, field: 'weightKg' | 'reps', value: string) =>
-    setSets((prev) => prev.map((s) => (s.id === id ? { ...s, [field]: value } : s)))
-
-  return (
-    <main className={styles.page}>
-      <h1 className={styles.title}>记录运动</h1>
-
-      <div className={styles.modes} role="group" aria-label="运动类型">
-        {(['cardio', 'strength'] as Mode[]).map((m) => (
-          <button
-            key={m}
-            type="button"
-            onClick={() => setMode(m)}
-            aria-pressed={mode === m}
-            className={`${styles.mode} ${mode === m ? styles.modeActive : ''}`}
-          >
-            {m === 'cardio' ? '有氧' : '力量'}
-          </button>
-        ))}
-      </div>
-
-      {mode === 'strength' ? (
-        <>
-          <input className={styles.input} placeholder="动作名称，例如：卧推" />
-          <p className={styles.hint}>计划里的目标：4 组 × 8–10 次。以下是实际完成的，可任意修改。</p>
-
-          <div className={styles.sets}>
-            {sets.map((set, i) => (
-              <div key={set.id} className={styles.setRow}>
-                <span className={`${styles.setIndex} num-tabular`}>{i + 1}</span>
-                <input
-                  className={styles.setInput}
-                  inputMode="decimal"
-                  placeholder="重量 kg"
-                  value={set.weightKg}
-                  onChange={(e) => updateSet(set.id, 'weightKg', e.target.value)}
-                />
-                <span className={styles.times}>×</span>
-                <input
-                  className={styles.setInput}
-                  inputMode="numeric"
-                  placeholder="次数"
-                  value={set.reps}
-                  onChange={(e) => updateSet(set.id, 'reps', e.target.value)}
-                />
-                <button
-                  type="button"
-                  className={styles.remove}
-                  onClick={() => removeSet(set.id)}
-                  aria-label={`删除第 ${i + 1} 组`}
-                >
-                  −
-                </button>
-              </div>
-            ))}
-          </div>
-
-          <button type="button" className={styles.secondaryButton} onClick={addSet}>
-            添加一组
-          </button>
-        </>
-      ) : (
-        <>
-          <input className={styles.input} placeholder="运动名称，例如：慢跑" />
-          <input className={styles.input} inputMode="numeric" placeholder="时长（分钟）" />
-          <div className={styles.modes} role="group" aria-label="强度">
-            {['轻松', '中等', '剧烈'].map((level) => (
-              <button key={level} type="button" className={styles.mode}>
-                {level}
-              </button>
-            ))}
-          </div>
-        </>
-      )}
-
-      <button type="button" className={styles.primaryButton}>
-        保存
-      </button>
-    </main>
-  )
+  return <WorkoutForm plan={planHint} entries={entries} />
 }

@@ -8,7 +8,11 @@ import { today } from '@/lib/data/today'
 import { formatDayHeading } from '@/lib/data/dates'
 import { setupSeededDatabase } from '@/tests/seeded-db'
 
-vi.mock('next/navigation', () => ({ usePathname: () => '/' }))
+vi.mock('next/navigation', () => ({
+  usePathname: () => '/',
+  // 体重录入那个小表单保存成功后会 router.refresh()
+  useRouter: () => ({ refresh: () => {} }),
+}))
 // 页面要求已登录：只替换「从请求里取令牌」这一步，会话查询与用户解析都照跑
 vi.mock('@/lib/auth/cookie', async () => (await import('@/tests/auth-cookie-mock')).cookieMock())
 

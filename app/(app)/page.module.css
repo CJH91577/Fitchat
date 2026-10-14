@@ -106,3 +106,47 @@
   color: var(--text-muted);
   font-size: 12px;
 }
+
+/* 体重录入：与卡片上的大数字同处一卡，做得明显比数字弱 */
+.weightForm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.weightInput {
+  flex: 1;
+  min-width: 110px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-tile);
+  background: var(--surface-card);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 15px;
+}
+
+.weightSave {
+  padding: 10px 14px;
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-tile);
+  background: transparent;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.weightSave:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.weightError {
+  margin: 0;
+  flex-basis: 100%;
+  color: var(--text-primary);
+  font-size: 13px;
+}

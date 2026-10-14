@@ -57,6 +57,81 @@
   font-size: 12px;
 }
 
+/* 保存与删除都是往服务端提交，所以各自是一个表单 */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* 今天该练：点一下就把动作与目标组数预填进表单 */
+.suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-tile);
+  background: var(--surface-card);
+}
+
+.suggestion {
+  padding: 8px 10px;
+  border: 1px solid var(--border-hairline);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.entries {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-hairline);
+}
+
+.entriesTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.entryRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--border-hairline);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.entryName {
+  flex: 1;
+  font-size: 14px;
+}
+
+.entryMeta {
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.error {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
 .sets {
   display: flex;
   flex-direction: column;

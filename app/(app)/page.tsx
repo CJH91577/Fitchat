@@ -1,6 +1,7 @@
 import HeroFigure from '@/components/HeroFigure'
 import RingGroup, { type RingSpec } from '@/components/RingGroup'
 import AiBadge from '@/components/AiBadge'
+import WeightForm from './WeightForm'
 import { today } from '@/lib/data/today'
 import { formatDayHeading, formatMonthDay, weekdayOf } from '@/lib/data/dates'
 import { burnedCalories, netCalories, sumMacros } from '@/lib/data/selectors'
@@ -170,6 +171,8 @@ export default async function Home() {
           </p>
         )}
         <p className={styles.hint}>建议起床后、进食前测量</p>
+        {/* 大数字是结果，这个小表单是入口：今天记过就预填，按钮写「改一下」 */}
+        <WeightForm todayKg={todayWeight} />
       </section>
     </main>
   )

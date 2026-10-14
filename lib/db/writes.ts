@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { and, eq, isNull } from 'drizzle-orm'
 import type { FoodSource, MealSlot } from '../data/types'
 import type { Db } from './index'
-import { foodEntries, foods, inviteCodes, users } from './schema'
+import { exerciseEntries, foodEntries, foods, goals, inviteCodes, strengthSets, users, weightEntries } from './schema'
 
 /**
  * 写路径。
@@ -207,6 +207,180 @@ export async function addFoodEntries(
       })),
     )
     .run()
+}
+
+/**
+ * 写入一条运动记录。力量动作的组数一起写，且与主记录在同一个事务里——
+ * 否则会出现「有这条运动，但一组都没有」的半条记录。
+ */
+export async function addExerciseEntry(
+  db: Db,
+  userId: string,
+  date: string,
+  entry: {
+    kind: 'cardio' | 'strength'
+    name: string
+    minutes: number | null
+    caloriesBurned: number
+    sets: { reps: number; weightKg: number }[]
+  },
+  now: Date,
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    const entryId = randomUUID()
+
+    await tx
+      .insert(exerciseEntries)
+      .values({
+        id: entryId,
+        userId,
+        date,
+        kind: entry.kind,
+        name: entry.name,
+        minutes: entry.minutes,
+        caloriesBurned: entry.caloriesBurned,
+        createdAt: now,
+      })
+      .run()
+
+    if (entry.sets.length > 0) {
+      await tx
+        .insert(strengthSets)
+        .values(
+          entry.sets.map((set, index) => ({
+            id: randomUUID(),
+            entryId,
+            // 组序号从 1 开始：顺序不该由数据库返回的顺序隐式决定
+            setIndex: index + 1,
+            reps: set.reps,
+            weightKg: set.weightKg,
+          })),
+        )
+        .run()
+    }
+  })
+}
+
+/** 删掉一条运动记录。归属检查写在条件里，与饮食记录同一个规矩 */
+export async function deleteExerciseEntry(
+  db: Db,
+  userId: string,
+  entryId: string,
+): Promise<boolean> {
+  return db.transaction(async (tx) => {
+    const existing = await tx
+      .select({ id: exerciseEntries.id })
+      .from(exerciseEntries)
+      .where(and(eq(exerciseEntries.id, entryId), eq(exerciseEntries.userId, userId)))
+      .get()
+    if (!existing) return false
+
+    // 组数由外键的 on delete cascade 一起清掉（连接上是开着外键的）
+    await tx
+      .delete(exerciseEntries)
+      .where(and(eq(exerciseEntries.id, entryId), eq(exerciseEntries.userId, userId)))
+      .run()
+    return true
+  })
+}
+
+/**
+ * 记下今天的体重。
+ *
+ * (user_id, date) 就是主键，所以一天一条——重复记录是**改**而不是追加。
+ * 这一点很重要：一天称两次不该变成两条记录，否则趋势页的日均值会被同一天
+ * 的数据重复计入。
+ */
+export async function upsertWeightEntry(
+  db: Db,
+  userId: string,
+  date: string,
+  kg: number,
+  now: Date,
+): Promise<void> {
+  await db
+    .insert(weightEntries)
+    .values({ userId, date, kg, createdAt: now })
+    .onConflictDoUpdate({
+      target: [weightEntries.userId, weightEntries.date],
+      set: { kg, createdAt: now },
+    })
+    .run()
+}
+
+/**
+ * 写入资料与每日目标，并把「当前体重」记成今天的空腹体重。
+ *
+ * 三件事一个事务：首次引导要么全成，要么全不成。只写上目标而没写体重，
+ * 首页会显示「今日未记录」而目标是按体重算出来的——这种半截状态最难解释。
+ */
+export async function saveProfileAndGoal(
+  db: Db,
+  userId: string,
+  /** 应用口径的「今天」（按用户时区算，见 lib/data/today.ts），不是运行环境的本地日期 */
+  date: string,
+  input: {
+    heightCm: number
+    age: number
+    sex: 'male' | 'female'
+    weightKg: number
+    goal: {
+      direction: 'cut' | 'bulk' | 'maintain'
+      calories: number
+      protein: number
+      carbs: number
+      fat: number
+      exerciseCalories: number
+      targetWeightKg: number
+    }
+  },
+  now: Date,
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    await tx
+      .update(users)
+      .set({ heightCm: input.heightCm, age: input.age, sex: input.sex })
+      .where(eq(users.id, userId))
+      .run()
+
+    await tx
+      .insert(goals)
+      .values({
+        userId,
+        direction: input.goal.direction,
+        calories: input.goal.calories,
+        protein: input.goal.protein,
+        carbs: input.goal.carbs,
+        fat: input.goal.fat,
+        exerciseCalories: input.goal.exerciseCalories,
+        targetWeightKg: input.goal.targetWeightKg,
+        updatedAt: now,
+      })
+      // 一个用户一行：重新引导就是覆盖（刻意不做版本历史，见 lib/db/schema.ts）
+      .onConflictDoUpdate({
+        target: goals.userId,
+        set: {
+          direction: input.goal.direction,
+          calories: input.goal.calories,
+          protein: input.goal.protein,
+          carbs: input.goal.carbs,
+          fat: input.goal.fat,
+          exerciseCalories: input.goal.exerciseCalories,
+          targetWeightKg: input.goal.targetWeightKg,
+          updatedAt: now,
+        },
+      })
+      .run()
+
+    await tx
+      .insert(weightEntries)
+      .values({ userId, date, kg: input.weightKg, createdAt: now })
+      .onConflictDoUpdate({
+        target: [weightEntries.userId, weightEntries.date],
+        set: { kg: input.weightKg, createdAt: now },
+      })
+      .run()
+  })
 }
 
 /**

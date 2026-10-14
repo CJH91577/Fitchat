@@ -92,3 +92,63 @@
   color: var(--text-muted);
   font-size: 12px;
 }
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fieldLabel {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--border-hairline);
+}
+
+.rowName {
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.rowMeta {
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.error {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+/* 次要动作：回上一步。与主按钮明显不同，避免误点 */
+.secondaryButton {
+  padding: 12px;
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-tile);
+  background: transparent;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
