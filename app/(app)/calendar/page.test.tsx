@@ -5,17 +5,25 @@ import { describe, it, expect, vi } from 'vitest'
 import Calendar from './page'
 import { today } from '@/lib/data/today'
 import { isCalorieOnTarget, isExerciseOnTarget } from '@/lib/data/selectors'
-import { dayLogFor, goalFor } from '@/lib/db/queries'
-import { getDb, getDemoUser } from '@/lib/db/runtime'
+import { dayLogFor, goalFor, userById } from '@/lib/db/queries'
+import { DEMO_USER_ID } from '@/lib/db/demo'
+import { getDb } from '@/lib/db/runtime'
 import { setupSeededDatabase } from '@/tests/seeded-db'
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/calendar' }))
+// 页面要求已登录：只替换「从请求里取令牌」这一步，会话查询与用户解析都照跑
+vi.mock('@/lib/auth/cookie', async () => (await import('@/tests/auth-cookie-mock')).cookieMock())
 
 // 日历页在服务端读库，把整段区间的达成情况交给客户端视图
 setupSeededDatabase()
 
+// 仓库根相对这个测试文件算（app/(app)/calendar → 上三级）。
+// 不拼 process.cwd()：页面搬进路由分组 (app) 时，写死的路径会直接 ENOENT，
+// 而那看起来像「样式没了」，实际只是路径过期。
+const repoRoot = join(import.meta.dirname, '..', '..', '..')
+
 function css(relPath: string): string {
-  return readFileSync(join(process.cwd(), ...relPath.split('/')), 'utf8')
+  return readFileSync(join(repoRoot, ...relPath.split('/')), 'utf8')
 }
 
 /**
@@ -35,7 +43,7 @@ describe('日历页', () => {
     // 只有真机能确认。它的价值在于：谁删掉链上的任何一环，这里会立刻转红。
     // 实测过一次：.calendarArea 不是 flex 容器、.wrap 用 height:100% 解析
     // 不到确定高度，于是 grid-auto-rows:1fr 退化成按内容高，网格只有半屏。
-    const pageCss = css('app/calendar/calendar.module.css')
+    const pageCss = css('app/(app)/calendar/calendar.module.css')
     const viewCss = css('components/CalendarView.module.css')
     const wrapCss = css('components/CalendarMonth.module.css')
 
@@ -69,7 +77,9 @@ describe('日历页', () => {
     const date = `${today().slice(0, 7)}-01`
 
     const db = getDb()
-    const user = await getDemoUser(db)
+    // 页面渲染的是「会话里的那个用户」——测试里的会话就是演示用户的
+    const user = await userById(db, DEMO_USER_ID)
+    if (!user) throw new Error('种子数据里应当有演示用户')
     const goal = await goalFor(db, user.id)
     const day = await dayLogFor(db, user, date)
     expect(day).not.toBeNull()

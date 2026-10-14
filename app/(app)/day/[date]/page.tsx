@@ -7,7 +7,8 @@ import { formatDayHeading } from '@/lib/data/dates'
 import { burnedCalories, isUpcoming, netCalories, sumMacros } from '@/lib/data/selectors'
 import { MEAL_SLOT_LABEL, type MealSlot } from '@/lib/data/types'
 import { dayLogFor, goalFor, weightFor } from '@/lib/db/queries'
-import { getDb, getDemoUser } from '@/lib/db/runtime'
+import { requireUser } from '@/lib/auth/current-user'
+import { getDb } from '@/lib/db/runtime'
 import styles from './day.module.css'
 
 const SLOTS: MealSlot[] = ['breakfast', 'lunch', 'dinner', 'snack']
@@ -64,7 +65,8 @@ export default async function DayDetail({
   }
 
   const db = getDb()
-  const user = await getDemoUser(db)
+  // 没登录直接跳登录页（requireUser 内部会 redirect）
+  const user = await requireUser(db)
 
   // dayLogFor 返回 null 表示「那一天用户还没开始用」，与「那天没记东西」
   //（返回空数组）是两种状态，界面上说法也不同。

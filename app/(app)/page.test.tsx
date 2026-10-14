@@ -9,6 +9,8 @@ import { formatDayHeading } from '@/lib/data/dates'
 import { setupSeededDatabase } from '@/tests/seeded-db'
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/' }))
+// 页面要求已登录：只替换「从请求里取令牌」这一步，会话查询与用户解析都照跑
+vi.mock('@/lib/auth/cookie', async () => (await import('@/tests/auth-cookie-mock')).cookieMock())
 
 // 页面从数据库读数据；期望值仍由生成器算，于是这里同时验证了迁移没有改变数字
 setupSeededDatabase()
@@ -51,7 +53,10 @@ describe('首页', () => {
     // 状态色是保留色，绝不用于体重方向。颜色定义在 CSS 模块里、不在 DOM 上，
     // 因此必须查样式表本身；查 innerHTML 永远查不到，那是一条恒真的假测试。
     // 四个保留色全部检查，漏掉任何一个都会给对应颜色留下可乘之机。
-    const css = readFileSync(join(process.cwd(), 'app', 'page.module.css'), 'utf8')
+    // 路径相对这个测试文件自己算，而不是拼 process.cwd()：
+    // 页面搬进路由分组 (app) 时，写死的 'app/page.module.css' 会直接 ENOENT，
+    // 而那看起来像「样式没了」，实际只是路径过期。
+    const css = readFileSync(join(import.meta.dirname, 'page.module.css'), 'utf8')
     expect(css).not.toContain('#0ca30c')
     expect(css).not.toContain('#fab219')
     expect(css).not.toContain('#ec835a')

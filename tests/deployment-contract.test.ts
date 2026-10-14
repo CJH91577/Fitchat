@@ -1,6 +1,7 @@
-import { readFileSync, readdirSync, statSync } from 'node:fs'
-import { join, relative } from 'node:path'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, it, expect } from 'vitest'
+import { repoPath, stripComments, walk } from './source'
 
 /**
  * 部署形态契约。
@@ -21,66 +22,9 @@ import { describe, it, expect } from 'vitest'
  */
 
 /**
- * 去掉注释，但跳过字符串字面量。
- *
- * 「跳过字符串」这半句是必须的：否则 'http://…' 里的 `//` 会被当成行注释，
- * 把该行后面真正的代码一起吃掉——那是**过度删除**，会让断言变得比原来更宽松，
- * 正好又回到这个文件当初的毛病上。
+ * 去掉注释、遍历目录、读源码的工具都在 ./source.ts——两个契约测试文件共用一份，
+ * 免得 stripComments 那种「必须跳过字符串」的细节各写一遍、各错一遍。
  */
-function stripComments(source: string): string {
-  let out = ''
-  let i = 0
-  let quote: string | null = null
-
-  while (i < source.length) {
-    const ch = source[i]
-    const next = source[i + 1]
-
-    if (quote !== null) {
-      out += ch
-      if (ch === '\\') {
-        out += next ?? ''
-        i += 2
-        continue
-      }
-      if (ch === quote) quote = null
-      i += 1
-      continue
-    }
-
-    if (ch === '"' || ch === "'" || ch === '`') {
-      quote = ch
-      out += ch
-      i += 1
-      continue
-    }
-
-    if (ch === '/' && next === '/') {
-      while (i < source.length && source[i] !== '\n') i += 1
-      continue
-    }
-
-    if (ch === '/' && next === '*') {
-      i += 2
-      while (i < source.length && !(source[i] === '*' && source[i + 1] === '/')) i += 1
-      i += 2
-      continue
-    }
-
-    out += ch
-    i += 1
-  }
-
-  return out
-}
-
-function walk(dir: string): string[] {
-  return readdirSync(dir).flatMap((name) => {
-    const full = join(dir, name)
-    return statSync(full).isDirectory() ? walk(full) : [full]
-  })
-}
-
 const root = process.cwd()
 const config = stripComments(readFileSync(join(root, 'next.config.ts'), 'utf8'))
 
@@ -89,7 +33,9 @@ const pages = walk(join(root, 'app')).filter(
 )
 
 /** 读了数据库的页面：内容来自库里，就必须每次请求现算 */
-const dataPages = pages.filter((file) => /from '@\/lib\/db\//.test(readFileSync(file, 'utf8')))
+const dataPages = pages.filter((file) =>
+  /from '@\/lib\/db\//.test(stripComments(readFileSync(file, 'utf8'))),
+)
 
 describe('部署形态契约', () => {
   it('next.config.ts 真正生效的 output 是 standalone', () => {
@@ -107,17 +53,17 @@ describe('部署形态契约', () => {
   it('确实找到了读了数据库的页面（别让这条测试静默失效）', () => {
     // 断言集为空时，下面的循环会「全部通过」——先钉住它非空
     expect(dataPages.length).toBeGreaterThanOrEqual(6)
-    const names = dataPages.map((file) => relative(root, file).replace(/\\/g, '/'))
-    expect(names).toContain('app/page.tsx')
-    expect(names).toContain('app/trends/page.tsx')
-    expect(names).toContain('app/day/[date]/page.tsx')
+    const names = dataPages.map((file) => repoPath(root, file))
+    expect(names).toContain('app/(app)/page.tsx')
+    expect(names).toContain('app/(app)/trends/page.tsx')
+    expect(names).toContain('app/(app)/day/[date]/page.tsx')
   })
 
   it('每个读库的页面都声明了 force-dynamic', () => {
     const missing = dataPages.filter(
       (file) => !/export const dynamic = 'force-dynamic'/.test(readFileSync(file, 'utf8')),
     )
-    expect(missing.map((file) => relative(root, file).replace(/\\/g, '/'))).toEqual([])
+    expect(missing.map((file) => repoPath(root, file))).toEqual([])
   })
 
   it('「今天」是请求期算出来的，不是写死的常量', () => {

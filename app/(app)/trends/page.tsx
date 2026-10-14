@@ -4,7 +4,8 @@ import { today } from '@/lib/data/today'
 import { addDays, dateRange, daysBetween, formatMonthDay } from '@/lib/data/dates'
 import { calorieSurplus, isCalorieOnTarget } from '@/lib/data/selectors'
 import { dayLogFor, goalFor, weightSeries } from '@/lib/db/queries'
-import { getDb, getDemoUser } from '@/lib/db/runtime'
+import { requireUser } from '@/lib/auth/current-user'
+import { getDb } from '@/lib/db/runtime'
 import styles from './trends.module.css'
 
 // 每次请求都重新渲染：数据来自数据库，且「今天」要跟着真实日期走。
@@ -119,7 +120,8 @@ export default async function Trends() {
   // 请求期取「今天」：服务端每次渲染都重新算（见 lib/data/today.ts）
   const TODAY = today()
   const db = getDb()
-  const user = await getDemoUser(db)
+  // 没登录直接跳登录页（requireUser 内部会 redirect）
+  const user = await requireUser(db)
   const goal = await goalFor(db, user.id)
 
   const recentDates = dateRange(addDays(TODAY, -(RECENT_DAYS - 1)), TODAY)

@@ -3,7 +3,8 @@ import { today } from '@/lib/data/today'
 import { dateRange } from '@/lib/data/dates'
 import { isCalorieOnTarget, isExerciseOnTarget } from '@/lib/data/selectors'
 import { dayLogFor, goalFor } from '@/lib/db/queries'
-import { getDb, getDemoUser } from '@/lib/db/runtime'
+import { requireUser } from '@/lib/auth/current-user'
+import { getDb } from '@/lib/db/runtime'
 import styles from './calendar.module.css'
 
 /**
@@ -20,7 +21,8 @@ export default async function Calendar() {
   // 请求期取「今天」：服务端每次渲染都重新算（见 lib/data/today.ts）
   const TODAY = today()
   const db = getDb()
-  const user = await getDemoUser(db)
+  // 没登录直接跳登录页（requireUser 内部会 redirect）
+  const user = await requireUser(db)
   const goal = await goalFor(db, user.id)
 
   // 约 390 天，每天两个布尔值——十几 KB，比趋势页那两张表小得多

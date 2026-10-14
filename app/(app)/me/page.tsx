@@ -1,7 +1,8 @@
 import Link from 'next/link'
 import { today } from '@/lib/data/today'
 import { goalFor, weightFor } from '@/lib/db/queries'
-import { getDb, getDemoUser } from '@/lib/db/runtime'
+import { requireUser } from '@/lib/auth/current-user'
+import { getDb } from '@/lib/db/runtime'
 import styles from './me.module.css'
 
 const DIRECTION_LABEL = { cut: '减脂', bulk: '增肌', maintain: '维持' } as const
@@ -13,7 +14,8 @@ export default async function Me() {
   // 请求期取「今天」：服务端每次渲染都重新算（见 lib/data/today.ts）
   const TODAY = today()
   const db = getDb()
-  const user = await getDemoUser(db)
+  // 没登录直接跳登录页（requireUser 内部会 redirect）
+  const user = await requireUser(db)
   const goal = await goalFor(db, user.id)
   const currentWeight = await weightFor(db, user, TODAY)
 

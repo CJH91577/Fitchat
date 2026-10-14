@@ -1,7 +1,8 @@
 import { today } from '@/lib/data/today'
 import { WEEKDAY_LABELS, weekdayOf } from '@/lib/data/dates'
 import { planFor } from '@/lib/db/queries'
-import { getDb, getDemoUser } from '@/lib/db/runtime'
+import { requireUser } from '@/lib/auth/current-user'
+import { getDb } from '@/lib/db/runtime'
 import styles from './plan.module.css'
 
 // 每次请求都重新渲染：数据来自数据库，且「今天」要跟着真实日期走。
@@ -11,7 +12,8 @@ export default async function Plan() {
   // 请求期取「今天」：服务端每次渲染都重新算（见 lib/data/today.ts）
   const TODAY = today()
   const db = getDb()
-  const user = await getDemoUser(db)
+  // 没登录直接跳登录页（requireUser 内部会 redirect）
+  const user = await requireUser(db)
   const plan = await planFor(db, user.id)
   const todayWeekday = weekdayOf(TODAY)
 

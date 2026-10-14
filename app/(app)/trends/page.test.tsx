@@ -9,6 +9,8 @@ import { calorieSurplus, isCalorieOnTarget } from '@/lib/data/selectors'
 import { setupSeededDatabase } from '@/tests/seeded-db'
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/trends' }))
+// 页面要求已登录：只替换「从请求里取令牌」这一步，会话查询与用户解析都照跑
+vi.mock('@/lib/auth/cookie', async () => (await import('@/tests/auth-cookie-mock')).cookieMock())
 
 /**
  * 页面从数据库读数据，而这里的期望值仍然由**生成器**算出。

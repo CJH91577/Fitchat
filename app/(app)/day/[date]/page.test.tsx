@@ -7,6 +7,8 @@ import { addDays } from '@/lib/data/dates'
 import { setupSeededDatabase } from '@/tests/seeded-db'
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/day/2026-09-22' }))
+// 页面要求已登录：只替换「从请求里取令牌」这一步，会话查询与用户解析都照跑
+vi.mock('@/lib/auth/cookie', async () => (await import('@/tests/auth-cookie-mock')).cookieMock())
 
 // 页面从数据库读数据，先准备一份种子库并把 DATABASE_PATH 指过去
 setupSeededDatabase()

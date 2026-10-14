@@ -6,7 +6,8 @@ import { formatDayHeading, formatMonthDay, weekdayOf } from '@/lib/data/dates'
 import { burnedCalories, netCalories, sumMacros } from '@/lib/data/selectors'
 import { MEAL_SLOT_LABEL, type MealSlot } from '@/lib/data/types'
 import { dayLogFor, goalFor, planFor, weightSeries } from '@/lib/db/queries'
-import { getDb, getDemoUser } from '@/lib/db/runtime'
+import { requireUser } from '@/lib/auth/current-user'
+import { getDb } from '@/lib/db/runtime'
 import styles from './page.module.css'
 
 const SLOTS: MealSlot[] = ['breakfast', 'lunch', 'dinner', 'snack']
@@ -18,7 +19,8 @@ export default async function Home() {
   // 请求期取「今天」：服务端每次渲染都重新算（见 lib/data/today.ts）
   const TODAY = today()
   const db = getDb()
-  const user = await getDemoUser(db)
+  // 没登录直接跳登录页（requireUser 内部会 redirect）
+  const user = await requireUser(db)
   const day = await dayLogFor(db, user, TODAY)
 
   // 演示用户必然在「今天」之前开始使用，所以这里不会是 null。

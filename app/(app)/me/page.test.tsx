@@ -6,6 +6,8 @@ import { today } from '@/lib/data/today'
 import { setupSeededDatabase } from '@/tests/seeded-db'
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/me' }))
+// 页面要求已登录：只替换「从请求里取令牌」这一步，会话查询与用户解析都照跑
+vi.mock('@/lib/auth/cookie', async () => (await import('@/tests/auth-cookie-mock')).cookieMock())
 
 // 页面从数据库读用户与目标；期望值仍由生成器算，于是这里同时验证了迁移没有改变数字
 setupSeededDatabase()
