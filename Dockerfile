@@ -4,7 +4,13 @@ WORKDIR /app
 
 # 依赖单独一层：只要 package.json / package-lock.json 没变，改源码不会重建它
 COPY package.json package-lock.json ./
-RUN npm ci
+# --ignore-scripts 是必要的，不是图快：better-sqlite3 自带 binding.gyp，而 npm 在
+# 包里没有 install 脚本时会自动跑 node-gyp rebuild——精简镜像里没有 python3/make/g++，
+# 于是构建直接失败。而它根本不需要编译：预编译二进制就在包的 prebuilds/ 里
+#（linux-x64 / linuxmusl-x64 / darwin / win32 都齐全），运行时由 node-gyp-build
+# 自己挑。本项目的其余依赖（next / react / drizzle / tsx / eslint / vitest）也都
+# 不依赖 install 脚本，所以跳过生命周期脚本是安全的。
+RUN npm ci --ignore-scripts
 
 COPY . .
 RUN npm run build
