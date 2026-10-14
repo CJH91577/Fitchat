@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import Trends from './page'
 import { MOCK_GOAL, MOCK_USER, dayLogFor, weightFor } from '@/lib/data/mock'
-import { TODAY } from '@/lib/data/today'
+import { today } from '@/lib/data/today'
 import { calorieSurplus } from '@/lib/data/selectors'
 import { setupSeededDatabase } from '@/tests/seeded-db'
 
@@ -41,13 +41,13 @@ describe('趋势页', () => {
 
   it('体重表包含今天的值，与数据层一致', async () => {
     render(await Trends())
-    const today = weightFor(TODAY) as number
-    expect(screen.getAllByText(String(today)).length).toBeGreaterThan(0)
+    const todayWeight = weightFor(today()) as number
+    expect(screen.getAllByText(String(todayWeight)).length).toBeGreaterThan(0)
   })
 
   it('热量盈余表包含今天的值，与数据层一致', async () => {
     render(await Trends())
-    const day = dayLogFor(TODAY)
+    const day = dayLogFor(today())
     expect(day).not.toBeNull()
     const expected = formatSurplus(calorieSurplus(day!, MOCK_GOAL))
     expect(screen.getAllByText(expected).length).toBeGreaterThan(0)

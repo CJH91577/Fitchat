@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { describe, it, expect, vi } from 'vitest'
 import Home from './page'
 import { dayLogFor, weightFor } from '@/lib/data/mock'
-import { TODAY } from '@/lib/data/today'
+import { today } from '@/lib/data/today'
 import { formatDayHeading } from '@/lib/data/dates'
 import { setupSeededDatabase } from '@/tests/seeded-db'
 
@@ -38,13 +38,13 @@ describe('首页', () => {
 
   it('体重显示的是今天的记录值', async () => {
     render(await Home())
-    const today = weightFor(TODAY) as number
-    expect(screen.getByText(`${today} kg`)).toBeInTheDocument()
+    const todayWeight = weightFor(today()) as number
+    expect(screen.getByText(`${todayWeight} kg`)).toBeInTheDocument()
   })
 
   it('日期栏显示当天的日期与星期，而不是写死的文案', async () => {
     render(await Home())
-    expect(screen.getByText(formatDayHeading(TODAY))).toBeInTheDocument()
+    expect(screen.getByText(formatDayHeading(today()))).toBeInTheDocument()
   })
 
   it('体重涨跌的样式不含成功或危险状态色', () => {
@@ -70,7 +70,7 @@ describe('首页', () => {
     render(await Home())
     // 标记按餐次渲染：某餐只要含 AI 估算来源的条目就显示一个标记。
     // 期望值从数据层推导，而不是写死「至少有一个」。
-    const day = dayLogFor(TODAY)
+    const day = dayLogFor(today())
     const slotsWithAi = new Set(
       (day?.foods ?? []).filter((f) => f.source === 'ai-estimate').map((f) => f.slot),
     )

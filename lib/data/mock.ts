@@ -1,7 +1,7 @@
 import { addDays, daysBetween } from './dates'
 import { generateDayLog, generateWeight } from './generator'
 import { isInRange } from './selectors'
-import { TODAY } from './today'
+import { today } from './today'
 import type { DayLog, PlanDay, UserGoal, WeightEntry } from './types'
 
 /**
@@ -107,5 +107,5 @@ export function datesWithRecords(fromKey: string, toKey: string): string[] {
 
 /** 最近 n 天的体重序列（含今天），供首页与测试使用 */
 export function recentWeights(n: number): WeightEntry[] {
-  return weightSeries(addDays(TODAY, -(n - 1)), TODAY)
+  return weightSeries(addDays(today(), -(n - 1)), today())
 }

@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import Me from './page'
 import { MOCK_GOAL, weightFor } from '@/lib/data/mock'
-import { TODAY } from '@/lib/data/today'
+import { today } from '@/lib/data/today'
 import { setupSeededDatabase } from '@/tests/seeded-db'
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/me' }))
@@ -27,17 +27,17 @@ describe('我的页', () => {
   it('个人资料中包含当前体重，取今天的记录值', async () => {
     render(await Me())
     expect(screen.getByText('当前体重')).toBeInTheDocument()
-    const today = weightFor(TODAY) as number
-    expect(screen.getByText(`${today} kg`)).toBeInTheDocument()
+    const todayWeight = weightFor(today()) as number
+    expect(screen.getByText(`${todayWeight} kg`)).toBeInTheDocument()
   })
 
   it('当前体重与目标体重是两个不同的数值', async () => {
     render(await Me())
     // 演示中的用户应当仍在减重途中。若起始体重恰好等于目标、或收敛期与
     // 使用时长相等，今天的体重会等于目标体重，两行就没有任何对比意义。
-    const today = weightFor(TODAY) as number
-    expect(today).not.toBe(MOCK_GOAL.targetWeightKg)
-    expect(screen.getByText(`${today} kg`)).toBeInTheDocument()
+    const todayWeight = weightFor(today()) as number
+    expect(todayWeight).not.toBe(MOCK_GOAL.targetWeightKg)
+    expect(screen.getByText(`${todayWeight} kg`)).toBeInTheDocument()
     expect(screen.getByText(`${MOCK_GOAL.targetWeightKg} kg`)).toBeInTheDocument()
   })
 })

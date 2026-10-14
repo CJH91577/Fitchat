@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
 import { generateDayLog } from '../data/generator'
 import { MOCK_GOAL, MOCK_PLAN, MOCK_USER, datesWithRecords } from '../data/mock'
-import { TODAY } from '../data/today'
+import { today } from '../data/today'
 import { createD1Shim } from './d1-shim'
 import { DEMO_USER_ID, STARTER_FOODS, seedDatabase } from './seed'
 import { type Db, createDb } from './index'
@@ -22,7 +22,7 @@ import {
   weightEntries,
 } from './schema'
 
-const DATES = datesWithRecords(MOCK_USER.startedAt, TODAY)
+const DATES = datesWithRecords(MOCK_USER.startedAt, today())
 
 const tempDir = mkdtempSync(join(tmpdir(), 'fitchat-seed-'))
 

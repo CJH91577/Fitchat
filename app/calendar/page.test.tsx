@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, it, expect, vi } from 'vitest'
 import Calendar from './page'
-import { TODAY } from '@/lib/data/today'
+import { today } from '@/lib/data/today'
 import { isCalorieOnTarget, isExerciseOnTarget } from '@/lib/data/selectors'
 import { dayLogFor, goalFor } from '@/lib/db/queries'
 import { getDb, getDemoUser } from '@/lib/db/runtime'
@@ -49,16 +49,16 @@ describe('日历页', () => {
 
   it('默认月份是「今天」所在的月份，且只显示一处', async () => {
     render(await Calendar())
-    const year = Number(TODAY.slice(0, 4))
-    const month = Number(TODAY.slice(5, 7))
+    const year = Number(today().slice(0, 4))
+    const month = Number(today().slice(5, 7))
     expect(screen.getAllByText(`${year} 年 ${month} 月`)).toHaveLength(1)
   })
 
   it('今天那一格是链接，指向当天的详情页', async () => {
     render(await Calendar())
-    expect(screen.getByRole('link', { name: new RegExp(TODAY) })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: new RegExp(today()) })).toHaveAttribute(
       'href',
-      `/day/${TODAY}`,
+      `/day/${today()}`,
     )
   })
 
@@ -66,7 +66,7 @@ describe('日历页', () => {
     // 端到端：期望值由查询层算出，页面若没读库（或读错了）就会失败。
     // 取当月 1 号——它必然不晚于今天，也必然不早于开始使用日期。
     render(await Calendar())
-    const date = `${TODAY.slice(0, 7)}-01`
+    const date = `${today().slice(0, 7)}-01`
 
     const db = getDb()
     const user = await getDemoUser(db)
@@ -94,7 +94,7 @@ describe('日历页', () => {
       .filter((href) => href.startsWith('/day/'))
 
     expect(hrefs.length).toBeGreaterThan(0)
-    expect(hrefs.filter((href) => href.slice('/day/'.length) > TODAY)).toEqual([])
-    expect(hrefs).toContain(`/day/${TODAY}`)
+    expect(hrefs.filter((href) => href.slice('/day/'.length) > today())).toEqual([])
+    expect(hrefs).toContain(`/day/${today()}`)
   })
 })

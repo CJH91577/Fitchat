@@ -2,7 +2,7 @@ import { eq, inArray } from 'drizzle-orm'
 import type { FoodTemplate } from '../data/generator'
 import { BREAKFAST, DINNER, LUNCH, SNACK, generateDayLog, generateWeight } from '../data/generator'
 import { MOCK_GOAL, MOCK_PLAN, MOCK_USER, datesWithRecords } from '../data/mock'
-import { TODAY } from '../data/today'
+import { today } from '../data/today'
 import { DEMO_USER_EMAIL, DEMO_USER_ID } from './demo'
 import type { Db } from './index'
 import {
@@ -85,7 +85,7 @@ async function insertInBatches<T>(
 export async function seedDatabase(db: Db, options: SeedOptions = {}): Promise<SeedSummary> {
   const email = options.email ?? DEMO_USER_EMAIL
   const from = options.from ?? MOCK_USER.startedAt
-  const to = options.to ?? TODAY
+  const to = options.to ?? today()
   const now = new Date(options.now ?? Date.now())
 
   return db.transaction(async (tx) => {

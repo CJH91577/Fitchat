@@ -1,13 +1,18 @@
 import WeightTable, { type WeightRow } from '@/components/WeightTable'
 import SurplusTable, { type SurplusRow } from '@/components/SurplusTable'
-import { TODAY } from '@/lib/data/today'
+import { today } from '@/lib/data/today'
 import { dateRange } from '@/lib/data/dates'
 import { calorieSurplus } from '@/lib/data/selectors'
 import { dayLogFor, goalFor, weightSeries } from '@/lib/db/queries'
 import { getDb, getDemoUser } from '@/lib/db/runtime'
 import styles from './trends.module.css'
 
+// 每次请求都重新渲染：数据来自数据库，且「今天」要跟着真实日期走。
+// 不加这一行，Next 会在构建时预渲染这些页面——数据被冻住，日期也一并冻住。
+export const dynamic = 'force-dynamic'
 export default async function Trends() {
+  // 请求期取「今天」：服务端每次渲染都重新算（见 lib/data/today.ts）
+  const TODAY = today()
   const db = getDb()
   const user = await getDemoUser(db)
   const goal = await goalFor(db, user.id)

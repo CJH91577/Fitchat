@@ -1,31 +1,22 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
-import DayDetail, { generateStaticParams } from './page'
+import DayDetail from './page'
 import { MOCK_USER } from '@/lib/data/mock'
-import { TODAY } from '@/lib/data/today'
-import { dateRange } from '@/lib/data/dates'
+import { today } from '@/lib/data/today'
+import { addDays } from '@/lib/data/dates'
 import { setupSeededDatabase } from '@/tests/seeded-db'
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/day/2026-09-22' }))
 
-// 页面现在从数据库读数据，先准备一份种子库并把 DATABASE_PATH 指过去
+// 页面从数据库读数据，先准备一份种子库并把 DATABASE_PATH 指过去
 setupSeededDatabase()
 
-describe('某日详情页的预渲染范围', () => {
-  it('覆盖从开始使用日期到今天的每一天，且不重复', async () => {
-    const dates = (await generateStaticParams()).map((p) => p.date)
-    const expected = dateRange(MOCK_USER.startedAt, TODAY)
-
-    expect(dates).toEqual(expected)
-    expect(dates[0]).toBe(MOCK_USER.startedAt)
-    expect(dates[dates.length - 1]).toBe(TODAY)
-    expect(new Set(dates).size).toBe(dates.length)
-  })
-
-  it('首尾两天都能渲染出真实内容，而不是空态', async () => {
-    const dates = (await generateStaticParams()).map((p) => p.date)
-
-    for (const date of [dates[0], dates[dates.length - 1]]) {
+describe('某日详情页的渲染范围', () => {
+  it('开始使用那天与今天都能渲染出真实内容，而不是空态', async () => {
+    // 这里曾经断言的是 generateStaticParams 的覆盖范围——那是静态导出的产物：
+    // 没有服务端，所有路径必须在构建时列出来。现在按请求渲染，清单不存在了，
+    // 该验的是「两端都能真的渲染出来」。
+    for (const date of [MOCK_USER.startedAt, today()]) {
       const ui = await DayDetail({ params: Promise.resolve({ date }) })
       render(ui)
       expect(screen.getByText(/净热量/)).toBeInTheDocument()
@@ -33,6 +24,14 @@ describe('某日详情页的预渲染范围', () => {
       // 同一次测试里渲染两次会叠加在同一份 document 上，多匹配会让断言失真
       cleanup()
     }
+  })
+
+  it('未来的日期显示「还没有到」，而不是渲染成空的一天', async () => {
+    // 「那天不存在内容」与「那天用户没记东西」是两件事，说法必须不同——
+    // 这与日历上不可点的未来格子是同一件事的两面。
+    const ui = await DayDetail({ params: Promise.resolve({ date: addDays(today(), 1) }) })
+    render(ui)
+    expect(screen.getByText(/还没有到/)).toBeInTheDocument()
   })
 })
 

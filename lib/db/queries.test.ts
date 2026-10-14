@@ -12,7 +12,7 @@ import {
   weightFor as generatedWeightFor,
   weightSeries as generatedWeightSeries,
 } from '../data/mock'
-import { TODAY } from '../data/today'
+import { today } from '../data/today'
 import { createD1Shim } from './d1-shim'
 import { DEMO_USER_EMAIL, DEMO_USER_ID } from './demo'
 import { type Db, createDb } from './index'
@@ -29,7 +29,7 @@ import {
 import { exerciseEntries, foodEntries, weightEntries } from './schema'
 import { seedDatabase } from './seed'
 
-const DATES = datesWithRecords(MOCK_USER.startedAt, TODAY)
+const DATES = datesWithRecords(MOCK_USER.startedAt, today())
 const MID_DATE = DATES[Math.floor(DATES.length / 2)]
 
 const tempDir = mkdtempSync(join(tmpdir(), 'fitchat-queries-'))

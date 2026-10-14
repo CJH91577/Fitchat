@@ -1,5 +1,5 @@
 import CalendarView, { type DayResult } from '@/components/CalendarView'
-import { TODAY } from '@/lib/data/today'
+import { today } from '@/lib/data/today'
 import { dateRange } from '@/lib/data/dates'
 import { isCalorieOnTarget, isExerciseOnTarget } from '@/lib/data/selectors'
 import { dayLogFor, goalFor } from '@/lib/db/queries'
@@ -13,7 +13,12 @@ import styles from './calendar.module.css'
  * 交互（翻月）留给客户端组件——静态导出之后没有服务端，翻月必须纯客户端完成，
  * 所以这一整段区间的达成情况要随页面一起送过去。
  */
+// 每次请求都重新渲染：数据来自数据库，且「今天」要跟着真实日期走。
+// 不加这一行，Next 会在构建时预渲染这些页面——数据被冻住，日期也一并冻住。
+export const dynamic = 'force-dynamic'
 export default async function Calendar() {
+  // 请求期取「今天」：服务端每次渲染都重新算（见 lib/data/today.ts）
+  const TODAY = today()
   const db = getDb()
   const user = await getDemoUser(db)
   const goal = await goalFor(db, user.id)

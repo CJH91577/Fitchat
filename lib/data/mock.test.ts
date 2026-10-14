@@ -9,18 +9,18 @@ import {
   datesWithRecords,
   recentWeights,
 } from './mock'
-import { TODAY } from './today'
+import { today } from './today'
 import { calorieSurplus, isInRange } from './selectors'
 import { addDays, daysBetween, todayKey } from './dates'
 
 describe('「今天」的来源', () => {
   it('取自构建日期，而不是写死的常量', () => {
-    // 这条钉住的正是本次改动：谁把 TODAY 改回字面量，这里立刻转红。
-    expect(TODAY).toBe(todayKey())
+    // 这条钉住的正是本次改动：谁把 today() 改回字面量，这里立刻转红。
+    expect(today()).toBe(todayKey())
   })
 
   it('落在使用范围内，晚于开始使用日期', () => {
-    expect(daysBetween(MOCK_USER.startedAt, TODAY)).toBeGreaterThan(0)
+    expect(daysBetween(MOCK_USER.startedAt, today())).toBeGreaterThan(0)
   })
 })
 
@@ -48,14 +48,14 @@ describe('使用范围', () => {
 
 describe('确定性（回归保护）', () => {
   it('同一日期两次取值完全相同——若有人改用 Math.random 会立刻失败', () => {
-    expect(dayLogFor(TODAY)).toEqual(dayLogFor(TODAY))
-    expect(weightFor(TODAY)).toBe(weightFor(TODAY))
+    expect(dayLogFor(today())).toEqual(dayLogFor(today()))
+    expect(weightFor(today())).toBe(weightFor(today()))
   })
 })
 
 describe('假数据的覆盖度', () => {
   it('近一年内存在摄入超出目标的日子', () => {
-    const over = datesWithRecords('2025-09-22', TODAY).some((date) => {
+    const over = datesWithRecords('2025-09-22', today()).some((date) => {
       const day = dayLogFor(date)
       return day !== null && calorieSurplus(day, MOCK_GOAL) > 0
     })
@@ -63,7 +63,7 @@ describe('假数据的覆盖度', () => {
   })
 
   it('近一年内存在摄入低于目标的日子', () => {
-    const under = datesWithRecords('2025-09-22', TODAY).some((date) => {
+    const under = datesWithRecords('2025-09-22', today()).some((date) => {
       const day = dayLogFor(date)
       return day !== null && calorieSurplus(day, MOCK_GOAL) < 0
     })
@@ -71,21 +71,21 @@ describe('假数据的覆盖度', () => {
   })
 
   it('存在至少一条 AI 估算来源的饮食', () => {
-    const hasAi = datesWithRecords(addDays(TODAY, -60), TODAY).some((date) =>
+    const hasAi = datesWithRecords(addDays(today(), -60), today()).some((date) =>
       (dayLogFor(date)?.foods ?? []).some((f) => f.source === 'ai-estimate'),
     )
     expect(hasAi).toBe(true)
   })
 
   it('存在至少一次力量训练', () => {
-    const hasStrength = datesWithRecords(addDays(TODAY, -120), TODAY).some((date) =>
+    const hasStrength = datesWithRecords(addDays(today(), -120), today()).some((date) =>
       (dayLogFor(date)?.exercises ?? []).some((e) => e.kind === 'strength'),
     )
     expect(hasStrength).toBe(true)
   })
 
   it('存在至少一天完全没有运动（休息日）', () => {
-    const hasRest = datesWithRecords(addDays(TODAY, -120), TODAY).some(
+    const hasRest = datesWithRecords(addDays(today(), -120), today()).some(
       (date) => (dayLogFor(date)?.exercises ?? []).length === 0,
     )
     expect(hasRest).toBe(true)
@@ -109,7 +109,7 @@ describe('weightSeries / datesWithRecords', () => {
   it('recentWeights 返回 n 条，末条为今天', () => {
     const w = recentWeights(7)
     expect(w).toHaveLength(7)
-    expect(w[w.length - 1].date).toBe(TODAY)
+    expect(w[w.length - 1].date).toBe(today())
   })
 
   it('datesWithRecords 不含早于开始使用日期的日期', () => {

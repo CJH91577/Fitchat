@@ -2,9 +2,9 @@ import Link from 'next/link'
 import HeroFigure from '@/components/HeroFigure'
 import RingGroup, { type RingSpec } from '@/components/RingGroup'
 import AiBadge from '@/components/AiBadge'
-import { TODAY } from '@/lib/data/today'
-import { dateRange, formatDayHeading } from '@/lib/data/dates'
-import { burnedCalories, netCalories, sumMacros } from '@/lib/data/selectors'
+import { today } from '@/lib/data/today'
+import { formatDayHeading } from '@/lib/data/dates'
+import { burnedCalories, isUpcoming, netCalories, sumMacros } from '@/lib/data/selectors'
 import { MEAL_SLOT_LABEL, type MealSlot } from '@/lib/data/types'
 import { dayLogFor, goalFor, weightFor } from '@/lib/db/queries'
 import { getDb, getDemoUser } from '@/lib/db/runtime'
@@ -18,23 +18,16 @@ function isValidDateKey(value: string): boolean {
 }
 
 /**
- * 预渲染从开始使用日期到今天的每一天。
+ * 某日详情页。
  *
- * 这些页面本来就完全由日期决定、内容不随请求变化，没必要每次请求现算。
- * 更实际的理由是：切到静态导出（output: 'export'）后没有服务端，
- * 所有路径必须在构建时就列出来，否则它们会直接 404。
+ * 这里以前有一个 generateStaticParams，把「开始使用日期 → 今天」的每一天
+ * 预渲染成静态页面——那是静态导出（output: 'export'）的硬要求：没有服务端，
+ * 所有路径必须在构建时列出来。代价是数据与「今天」一起被冻在构建那一刻。
  *
- * 范围取自**数据库里**的 startedAt——它已经是用户自身的属性，
- * 不再是写死的常量。
- *
- * 「今天」在构建时确定，所以覆盖范围会随每次构建往前推进——这也是需要
- * 定时重建的原因之一（见 DEPLOY.md）。
+ * 现在服务端每次请求现算：任意一天的详情页都能打开，内容取自数据库当前值，
+ * 「今天」也跟着真实日期走。每次请求多几个索引查询，这个体量下可以忽略。
  */
-export async function generateStaticParams(): Promise<{ date: string }[]> {
-  const db = getDb()
-  const user = await getDemoUser(db)
-  return dateRange(user.startedAt, TODAY).map((date) => ({ date }))
-}
+export const dynamic = 'force-dynamic'
 
 export default async function DayDetail({
   params,
@@ -42,11 +35,27 @@ export default async function DayDetail({
   params: Promise<{ date: string }>
 }) {
   const { date } = await params
+  // 请求期取「今天」：服务端每次渲染都重新算（见 lib/data/today.ts）
+  const TODAY = today()
 
   if (!isValidDateKey(date)) {
     return (
       <main className={styles.page}>
         <p className={styles.empty}>日期格式不正确。</p>
+        <Link href="/calendar" className={styles.back}>
+          回到日历
+        </Link>
+      </main>
+    )
+  }
+
+  // 「还没到」的日子不该渲染成「空的一天」——前者是那天不存在内容，
+  // 后者是用户那天没记东西，两者在界面上必须说得不一样。
+  // 这与日历上不可点的未来格子是同一件事的两面。
+  if (isUpcoming(date, TODAY)) {
+    return (
+      <main className={styles.page}>
+        <p className={styles.empty}>这一天还没有到。</p>
         <Link href="/calendar" className={styles.back}>
           回到日历
         </Link>
