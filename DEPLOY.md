@@ -1,143 +1,116 @@
-# 部署与更新
+# 部署与更新（腾讯云 + Docker）
 
-本站是**纯静态**导出（`next.config.ts` 里的 `output: 'export'`）：`npm run build` 产出 `out/`，交给静态托管即可，不需要服务器、不需要数据库、不需要任何密钥。
+架构一句话：**Next.js 服务端渲染 + 一个 SQLite 文件 + Docker Compose**。没有外部服务、没有数据库服务器、没有定时任务。
 
-当前路线：**GitHub 仓库 + Cloudflare Pages 的 Git 集成**——构建在 Cloudflare 云端完成，`git push` 即自动部署，另配一个定时器每天重建一次。
+- 数据落在宿主机的 `./data/fitchat.db`（挂载进容器），重建容器不丢数据。
+- **应用自己建库**：首次启动时跑迁移、库里没有演示用户就播种（见 `instrumentation.ts` 与 `lib/db/bootstrap.ts`）。所以镜像里不需要额外的初始化步骤。
+- 「今天」按请求计算，不是构建期常量——站点不会「过期」，**不需要每晚重建**。
 
-## 一、上线（一次性，约 10 分钟）
+## 一、服务器准备（一次性）
 
-### 1. 建一个新的 GitHub 仓库并推送
+1. 买一台腾讯云轻量应用服务器 / CVM，镜像选 **Ubuntu 24.04 + Docker**（本清单按这个镜像写）。
+2. 控制台 → 防火墙 / 安全组，放行：
+   - **22**（SSH）
+   - **3000**（先用 `IP:3000` 访问；之后套上 Nginx 再放行 80/443）
+3. SSH 登录服务器。
 
-在 <https://repo.new> 建一个**空仓库**（不要勾选 README / .gitignore / License，否则首次推送会撞车）。然后在项目目录执行：
+**验证**：`docker --version` 与 `docker compose version` 都有输出。
 
-```bash
-cd C:\Users\admin\Fitchat
-git remote add origin https://github.com/<你的用户名>/<仓库名>.git
-git branch -M main
-git push -u origin main
-```
-
-> 本地仓库的 `origin` 已被清空——原来指向 `github.com/CJH91577/Fitchat.git`，那个仓库已删除，留着只会在推送时报「Repository not found」。所以上面用 `git remote add` 而不是 `set-url`。
-
-**验证**：GitHub 网页上能看到 56 个文件的完整提交历史。
-
-### 2. 在 Cloudflare 建 Pages 项目
-
-> 前置：仓库里**至少要有一个已推送的分支**，否则下一步的 Production branch 下拉是空的。
-
-控制台 → **Workers & Pages** → **Create application** → **Pages** 标签 → **Connect to Git** → 按提示用 GitHub 登录并授权 → 选中仓库 → **Install & Authorize** → **Begin setup**。
-
-在 **Set up builds and deployments** 里按下表填：
-
-| 字段 | 填什么 |
-|---|---|
-| Project name | `fitchat`（**全局唯一**，它决定 `https://fitchat.pages.dev`；被占用就换，如 `fitchat-demo`） |
-| Production branch | `main` |
-| Framework preset | `Next.js (Static HTML Export)` |
-| Build command | **改成 `npm run build`**（预设给的是 `npx next build`，不能用——原因见下） |
-| Build directory | `out`（选预设后自动带出） |
-| Root directory (advanced) | **留空** |
-| Environment variables | **全部留空**（本项目不需要任何变量） |
-
-> **为什么 Build command 必须是 `npm run build`，而不是预设默认的 `npx next build`**
->
-> 页面在**构建期**就从 SQLite 读数据（见 `lib/db/queries.ts`），所以构建时库文件必须存在；
-> 而库文件 `data/fitchat.db` 是 gitignore 的，仓库里没有它。
->
-> 本仓库的 `build` 脚本因此是 `tsx scripts/seed.ts && next build`：先用确定性的种子脚本
-> 把库建出来，再构建。预设默认的 `npx next build` 会跳过播种，于是构建期读库直接失败。
->
-> 种子是确定性的（以日期为种子），所以每次构建得到的是同一个库——构建可复现，
-> 线上演示站的数字也不会因为重建而跳动。
-
-然后 **Save and Deploy**，首次构建约 1–3 分钟。
-
-**Node 版本不用管**：Cloudflare 构建镜像默认 Node.js **22.16.0**，而 Next 16 只要求 Node ≥ 20.9，够用。
-
-
-> ⚠️ **不要用 Direct Upload（拖拽）**。官方文档写得很明确：「If you choose Direct Upload, you cannot switch to Git integration later. You will have to create a new project with Git integration to use automatic deployments.」——拖拽项目日后无法转成 Git 集成，只能重建项目、换域名。既然要自动重建，一开始就走 Git 集成。
->
-> 反过来也要知道：Git 集成的项目**不能**再用控制台拖拽上传，只能靠 `git push` 或命令行 `wrangler pages deploy`。
-
-### 3. 拿到网址
-
-部署完成后是 `https://<项目名>.pages.dev`，这就是别人能访问的地址。想绑自己的域名：项目 → **Custom domains**。
-
-**验证**：手机打开该网址——首页日期栏显示今天、日历里今天那格边框更亮、底部五项导航都能点开。
-
-## 二、每日重建（必配，否则网站会「过期」）
-
-「今天」是在**构建时**写进 HTML 的（`NEXT_PUBLIC_TODAY`，见 `next.config.ts`），所以站点不会自己往前翻页：不重建的话，日历和首页会永远停在最后一次构建那天。
-
-> 时区不必担心：`todayKey()` 固定按 `Asia/Shanghai` 取日期，所以 Cloudflare 在 UTC 环境下构建，写进去的仍是正确的北京时间日期。
-
-### 1. 建一个 Deploy Hook
-
-Cloudflare 项目 → **Settings** → **Builds** → **Add deploy hook** → 名字随意（如 `nightly`），**Branch to build 填 `main`** → 拿到一个 URL。
-
-### 2. 用定时服务每天 POST 一次
-
-在 <https://cron-job.org>（免费）建一个任务：URL 填上面的 Deploy Hook 地址，方法 POST，频率设为每天一次。
-
-**建议时间：16:05 UTC，即北京时间 00:05。** 这样每天零点一过就重建，站点上的「今天」立刻跟上。
-
-> 为什么不把定时任务放在 GitHub Actions？因为 GitHub 会在**仓库 60 天没有活动**时自动停用 `schedule` 工作流。本仓库一个演示项目，平时不会有提交，正好会踩中这个坑。cron-job.org 是独立的第三方，不受影响。
-
-**验证**：在 cron-job.org 上手动点一次「Run now」，Cloudflare 项目里应多出一条新的部署记录，站点日期随之更新。
-
-## 三、改了代码之后怎么更新
+## 二、把代码放上去并启动
 
 ```bash
-git add -A
-git commit -m "..."
-git push
+git clone <你的仓库地址> fitchat
+cd fitchat
+docker compose up -d --build
+docker compose logs -f          # 看到 Ready 即可
 ```
 
-Cloudflare 会自动重新构建并部署，不需要手动做任何事。
+首次启动会**多花几秒**：应用在建库并播种（数据覆盖「开始使用日 → 今天 + 90 天」，约 1800 条饮食记录）。
 
-## 四、本地预览与手动重建
+**验证**：浏览器打开 `http://<服务器IP>:3000`——首页日期栏应当是**当天**，四餐与圆环都有数据。
+
+想确认数据落在哪：
 
 ```bash
-npm install
-npm run build     # 产出 out/
-npx serve out     # 本地起一个静态服务器预览
+ls -lh data/                      # 宿主机上的 fitchat.db
+docker compose exec app ls -l /data
 ```
 
-> 直接双击 `out/index.html` 用 `file://` 打开是**不行**的：站内链接指向 `/calendar`、`/day/2026-10-12` 这类绝对路径，必须有一个 HTTP 服务器提供根目录。
+## 三、域名与 HTTPS（推荐，但需要备案）
 
-想立刻让线上站点重建一次（不等定时器）：对 Deploy Hook 地址发一个 POST 即可。
+用**域名**访问需要 ICP 备案（把域名解析到国内服务器并提供服务就必须备案），周期通常 1–2 周。备案期间可以继续用 `IP:3000` 开发和演示。
+
+备案通过后，在服务器上装 Nginx 与证书：
 
 ```bash
-curl -X POST "<Deploy Hook URL>"
+sudo apt update && sudo apt install -y nginx certbot python3-certbot-nginx
 ```
 
-## 五、排错
+`/etc/nginx/sites-available/fitchat`：
+
+```nginx
+server {
+    listen 80;
+    server_name 你的域名;
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+```bash
+sudo ln -s /etc/nginx/sites-available/fitchat /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+sudo certbot --nginx -d 你的域名      # 申请证书并把上面的配置改成 443
+```
+
+之后可以把 compose 里的端口收成只绑本地：`"127.0.0.1:3000:3000"`，外部一律走 Nginx。
+
+## 四、更新代码
+
+```bash
+cd fitchat
+git pull
+docker compose up -d --build
+```
+
+数据不受影响（它在 `./data` 上）。新增的迁移会在下次启动时自动应用。
+
+## 五、备份
+
+SQLite 就是一个文件，备份 = 复制它。**但不要在服务运行时直接 `cp`**（WAL 模式下可能拿到不一致的快照），先停容器：
+
+```bash
+mkdir -p backups
+docker compose stop app
+cp data/fitchat.db "backups/fitchat-$(date +%F).db"
+docker compose start app
+```
+
+丢数据的代价目前很低（演示数据是确定性生成的，重建即可），但**一旦有了真实用户写入**，备份就不再是可有可无的。
+
+## 六、排错
 
 | 现象 | 原因与处理 |
 |---|---|
-| 仓库列表里找不到你的仓库 | Cloudflare 的 GitHub App 授权范围没覆盖它。去 GitHub → **Settings → Applications → Cloudflare Pages → Configure**，勾选该仓库（或选 All repositories）。 |
-| Production branch 下拉是空的 | 仓库里还没有任何已推送的分支——先完成第 1 步的 `git push`。 |
-| 项目名报已存在 | 项目名在 Cloudflare 上全局唯一，换一个（如 `fitchat-demo`），默认域名会跟着变。 |
-| 构建成功但打开是 404 | Build directory 填错了，必须是 `out`（不是 `dist`、不是 `.next`）。 |
-| 构建报 Node 版本不满足 | 正常不会发生（默认 22.16.0 已满足）。真要覆盖：**Settings → Environment variables** 加 `NODE_VERSION=24`。 |
-| 某日详情页 404 | 这些页面在构建时按「开始使用日期 → 今天」预生成（约 386 个）。若这个范围不对，检查 `lib/data/mock.ts` 的 `MOCK_USER.startedAt` 与构建日期。 |
-| 想手动上传而不是 push | Git 集成项目不能用拖拽，只能用 `npx wrangler pages deploy out --project-name=<项目名>`。 |
-| 站点日期没跟上 | 看 Cloudflare 的部署记录是否每天新增一条；没有就是 Deploy Hook 或定时任务断了。 |
+| 页面 500，日志报「找不到迁移文件」 | `MIGRATIONS_FOLDER` 指错了。镜像里设的是 `/app/drizzle`，且 `drizzle/` 必须真的被复制进镜像（见 Dockerfile 的 COPY）。**不要依赖相对路径**：Next 的 standalone server 启动时会把工作目录切到 `server.js` 所在目录。 |
+| 首次启动慢几秒 | 正常：在建库 + 播种。看日志确认没有报错即可。 |
+| 端口连不上 | 腾讯云的**安全组**没放行 3000（这是最常见的）。 |
+| 容器起来又立刻退出 | `docker compose logs app` 看日志，多半是建库失败（挂载目录权限）。 |
+| 想重置演示数据 | `docker compose down && rm -rf data && docker compose up -d`（会重新建库并播种）。 |
+| 本地开发要数据 | 在项目根目录跑 `npm run db:seed`（同样会建库 + 播种）。 |
 
-## 六、部署细节
+## 七、为什么不再是静态站
 
-- 构建产物体积约 **20 MB / 2012 个文件**（其中 386 个是某日详情页）。
-- 某日详情页产出的是 `out/day/2026-10-12.html`，**不是** `2026-10-12/index.html`。Cloudflare Pages 会自动把 `/day/2026-10-12` 指到该文件；但**裸的对象存储（阿里云 OSS、腾讯云 COS）不会**，那种情况要么加 `trailingSlash: true`，要么在 CDN 上配 URL 重写。
-- `out/` 已在 `.gitignore` 里，不会被提交。
-- `next.config.ts` 里有 `experimental: { workerThreads: true, useTypeScriptCli: false }`：这是为了让构建在**禁止子进程的受限环境**里也能跑（构建 worker 与类型检查改用线程）。实测类型检查照常执行、产出正常。你的机器与 Cloudflare 都没有这个限制，删掉这一行回到 Next 默认行为也不会影响部署。
+原先这个项目是 `output: 'export'` 的纯静态站，托管在 Cloudflare Pages 上。换成服务端渲染的原因：
 
-## 七、产品层面的已知限制（别把演示当成品）
+- **认证**（会话 cookie）与**写操作**都需要请求期有服务端，静态站做不到。
+- 顺带解决了「今天」被冻在构建那一刻的问题——那套「每晚重新构建一次」的机制因此彻底退休。
 
-站点能打开、能点、页面之间数据自洽，但**不能真正记账**：
-
-- 没有登录与权限，任何页面都能直接打开。
-- 没有后端、不落库，**数据是按日期规则确定性生成的假数据**，刷新即回到原样。
-- 「保存」「解析」都没有真实副作用（解析返回的是写死的假结果）。
-- 界面上的「AI 估算」标签来自生成规则，**没有接入任何大模型**。
-- 「今天」取构建日期，不是浏览者打开页面的日期（所以才有上面第二节的每日重建）。
-- 训练计划是固定的周表，与运动记录互不相关——这是刻意的，记录反映实际发生的事，不是计划的事。
+那个 Cloudflare Pages 站点保留为**历史快照**，不再更新。为它准备的 vinext / OpenNext 适配没有采用：国内服务器这条路的依赖最少，也不需要 beta 工具链。

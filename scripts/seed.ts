@@ -1,7 +1,9 @@
+import { addDays } from '../lib/data/dates'
+import { today } from '../lib/data/today'
 import { dbPath } from '../lib/db/index'
 import { applyMigrations } from '../lib/db/migrate'
 import { openLocalDb } from '../lib/db/runtime'
-import { seedDatabase } from '../lib/db/seed'
+import { SEED_HORIZON_DAYS, seedDatabase } from '../lib/db/seed'
 
 // 先跑迁移，让 `npm run db:seed` 单独执行也能得到一个可用的库。
 async function main(): Promise<void> {
@@ -10,8 +12,10 @@ async function main(): Promise<void> {
 
   const { db, close } = openLocalDb(path)
   try {
-    const summary = await seedDatabase(db)
+    // 多播一段未来：演示站打开就该有内容，不能等到播种日之后就空掉
+    const summary = await seedDatabase(db, { to: addDays(today(), SEED_HORIZON_DAYS) })
     console.log(`种子数据已写入：${path}`)
+    console.log(`  覆盖到 ${addDays(today(), SEED_HORIZON_DAYS)}（今天 + ${SEED_HORIZON_DAYS} 天）`)
     for (const [name, value] of Object.entries(summary)) {
       console.log(`  ${name.padEnd(16)} ${value}`)
     }

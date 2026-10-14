@@ -1,0 +1,23 @@
+services:
+  app:
+    build: .
+    image: fitchat:latest
+    container_name: fitchat
+    # 服务器重启后容器自动起来；除非有人手动 stop，否则不会被停掉
+    restart: unless-stopped
+    ports:
+      # 先用「IP:3000」直接访问，跑通之后再套 Nginx（见 DEPLOY.md 第三节）。
+      # 注意：腾讯云的安全组也要放行这个端口，否则外面连不上。
+      - "3000:3000"
+    environment:
+      - DATABASE_PATH=/data/fitchat.db
+    volumes:
+      # 数据库文件放在宿主机上：docker compose up --build 重建容器时数据不会丢
+      - ./data:/data
+    healthcheck:
+      # 首页要查库，能返回 200 就说明「进程活着 + 数据库可读」两件事都成立
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s

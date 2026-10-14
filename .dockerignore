@@ -1,0 +1,10 @@
+# 构建镜像时不需要的东西——`.dockerignore` 也会直接影响构建速度
+node_modules
+.next
+out
+data
+.git
+.github
+docs
+*.PNG
+*.png
