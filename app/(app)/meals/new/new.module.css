@@ -122,3 +122,114 @@
   color: var(--text-secondary);
   font-size: 14px;
 }
+
+/* 搜索命中的食物：整行可点，所以是按钮而不是列表项 */
+.results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-tile);
+  overflow: hidden;
+}
+
+.result {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 11px 12px;
+  border: none;
+  border-bottom: 1px solid var(--border-hairline);
+  background: var(--surface-card);
+  color: var(--text-primary);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.resultName {
+  font-size: 14px;
+}
+
+.resultMeta {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.unrecognized {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.error {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+/* 待确认列表：与保存表单是同一个 <form>，所以这里既是容器也是表单 */
+.drafts,
+.entries {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.entries {
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-hairline);
+}
+
+.draftRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-hairline);
+}
+
+.grams {
+  width: 62px;
+  padding: 7px 8px;
+  border: 1px solid var(--border-hairline);
+  border-radius: 10px;
+  background: var(--surface-card);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 14px;
+  text-align: right;
+}
+
+.gramsUnit {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/* 删除按钮：与记录运动页一致，最右边一个窄按钮 */
+.remove {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border-hairline);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.remove:disabled {
+  opacity: 0.4;
+  cursor: default;
+}

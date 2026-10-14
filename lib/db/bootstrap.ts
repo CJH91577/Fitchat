@@ -8,8 +8,8 @@ import { dbPath } from './index'
 import { applyMigrations } from './migrate'
 import { userById } from './queries'
 import { openLocalDb } from './runtime'
-import { SEED_HORIZON_DAYS, seedDatabase } from './seed'
-import { createInviteCodes, setPasswordHashIfMissing } from './writes'
+import { SEED_HORIZON_DAYS, STARTER_FOODS, seedDatabase, starterFoodRow } from './seed'
+import { createInviteCodes, ensureFoodLibrary, setPasswordHashIfMissing } from './writes'
 
 /**
  * 首次启动时把数据库准备出来：先跑迁移，库里还没有演示用户就播种。
@@ -57,6 +57,13 @@ export async function ensureDatabase(): Promise<void> {
       db,
       DEMO_INVITE_CODES.map((code) => ({ code, note: '随部署附送，公开' })),
       new Date(),
+    )
+
+    // 食物库同理：新版本往里加了常用单品，已跑起来的站点不会重新播种，
+    // 不补这一步，升级后说「两个鸡蛋」会一个食物都匹配不上
+    await ensureFoodLibrary(
+      db,
+      STARTER_FOODS.map((_, index) => starterFoodRow(index)),
     )
   } finally {
     close()

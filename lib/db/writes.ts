@@ -1,6 +1,8 @@
+import { randomUUID } from 'node:crypto'
 import { and, eq, isNull } from 'drizzle-orm'
+import type { FoodSource, MealSlot } from '../data/types'
 import type { Db } from './index'
-import { inviteCodes, users } from './schema'
+import { foodEntries, foods, inviteCodes, users } from './schema'
 
 /**
  * 写路径。
@@ -130,4 +132,109 @@ export async function createInviteCodes(
     )
     .onConflictDoNothing()
     .run()
+}
+
+export type FoodLibraryRow = {
+  id: string
+  name: string
+  perGrams: number
+  calories: number
+  protein: number
+  carbs: number
+  fat: number
+}
+
+/**
+ * 补齐食物库。
+ *
+ * 与邀请码同一个道理：新版本给食物库加了常用单品（见 lib/data/pantry.ts），
+ * 而**已经跑起来**的站点不会重新播种（演示用户早就在库里）——不补这一步，
+ * 升级后的人说「两个鸡蛋」会一个食物都匹配不上。
+ *
+ * 冲突一律什么都不做：库里已有的行（包括用户自己改过的数值）不动，
+ * 只把缺的加进去。
+ */
+export async function ensureFoodLibrary(db: Db, rows: FoodLibraryRow[]): Promise<void> {
+  if (rows.length === 0) return
+
+  await db.insert(foods).values(rows).onConflictDoNothing().run()
+}
+
+export type FoodEntryInput = {
+  foodId: string | null
+  name: string
+  grams: number
+  source: FoodSource
+  calories: number
+  protein: number
+  carbs: number
+  fat: number
+}
+
+/**
+ * 写入一天的饮食记录。
+ *
+ * 营养值是**快照**（见 lib/schema.ts 的说明）：食物库里的数字日后会被修正，
+ * 但历史记录必须冻结当时算出来的值，否则「那天吃了多少」会被追溯改写。
+ */
+export async function addFoodEntries(
+  db: Db,
+  userId: string,
+  date: string,
+  slot: MealSlot,
+  entries: FoodEntryInput[],
+  now: Date,
+): Promise<void> {
+  if (entries.length === 0) return
+
+  await db
+    .insert(foodEntries)
+    .values(
+      entries.map((entry) => ({
+        id: randomUUID(),
+        userId,
+        date,
+        slot,
+        foodId: entry.foodId,
+        name: entry.name,
+        grams: entry.grams,
+        source: entry.source,
+        calories: entry.calories,
+        protein: entry.protein,
+        carbs: entry.carbs,
+        fat: entry.fat,
+        createdAt: now,
+      })),
+    )
+    .run()
+}
+
+/**
+ * 删掉一条饮食记录。
+ *
+ * 归属检查写在**条件里**，而不是先查出来比对：`WHERE id = ? AND user_id = ?`
+ * 这一句本身就表达了「只能删自己的」。先查后删会在两次查询之间留一个窗口，
+ * 而且一旦有人日后把查出来的结果换成别的东西，检查就静默失效了。
+ *
+ * 返回是否真的删掉了一行，好让界面能说「这条记录不在了」而不是假装成功。
+ */
+export async function deleteFoodEntry(
+  db: Db,
+  userId: string,
+  entryId: string,
+): Promise<boolean> {
+  return db.transaction(async (tx) => {
+    const existing = await tx
+      .select({ id: foodEntries.id })
+      .from(foodEntries)
+      .where(and(eq(foodEntries.id, entryId), eq(foodEntries.userId, userId)))
+      .get()
+    if (!existing) return false
+
+    await tx
+      .delete(foodEntries)
+      .where(and(eq(foodEntries.id, entryId), eq(foodEntries.userId, userId)))
+      .run()
+    return true
+  })
 }

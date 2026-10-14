@@ -12,6 +12,7 @@ import type { Db } from './index'
 import {
   exerciseEntries,
   foodEntries,
+  foods,
   goals,
   inviteCodes,
   planDays,
@@ -131,6 +132,19 @@ export async function goalFor(db: Db, userId: string): Promise<UserGoal | null> 
     targetWeightKg: row.targetWeightKg,
   }
 }
+
+/** 记录饮食时用：按 id 批量取食物，把用户填的克数换算成营养值 */
+export async function foodsByIds(db: Db, ids: string[]): Promise<FoodRow[]> {
+  if (ids.length === 0) return []
+  return db.select().from(foods).where(inArray(foods.id, ids)).all()
+}
+
+/** 食物库（用于搜索与一句话解析） */
+export async function allFoods(db: Db): Promise<FoodRow[]> {
+  return db.select().from(foods).orderBy(asc(foods.id)).all()
+}
+
+export type FoodRow = typeof foods.$inferSelect
 
 /**
  * 某一天的完整记录。

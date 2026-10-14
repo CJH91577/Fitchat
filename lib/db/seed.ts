@@ -2,6 +2,7 @@ import { eq, inArray } from 'drizzle-orm'
 import type { FoodTemplate } from '../data/generator'
 import { BREAKFAST, DINNER, LUNCH, SNACK, generateDayLog, generateWeight } from '../data/generator'
 import { MOCK_GOAL, MOCK_PLAN, MOCK_USER, datesWithRecords } from '../data/mock'
+import { PANTRY } from '../data/pantry'
 import { today } from '../data/today'
 import { DEMO_INVITE_CODES, DEMO_USER_EMAIL, DEMO_USER_ID } from './demo'
 import type { Db } from './index'
@@ -76,12 +77,69 @@ export type SeedSummary = {
 export const SEED_HORIZON_DAYS = 90
 
 /**
- * 初始食物库：直接复用生成器里的营养模板。
+ * 初始食物库：生成器里的营养模板 + 常用单品（lib/data/pantry.ts）。
  *
- * 生成器就是按这些模板挑食物的，所以演示记录里的每一条都能在这里找到
+ * 生成器就是按前四组模板挑食物的，所以演示记录里的每一条都能在这里找到
  * 同名的食物——为 false 时说明两处数据已经漂移。
+ *
+ * 三条约束，都是踩过才知道的：
+ *
+ *   1. **只能往后追加，不能插队**：食物的 id 由下标算出来（starterFoodId），
+ *      插在中间会让现有部署里记录的 food_id 指到别的食物上去。
+ *   2. **同名只留第一次出现的**：零食那组里已经有「苹果」「酸奶」，
+ *      单品表里再来一次会撞上 foods.name 的唯一索引，播种直接失败。
+ *   3. 前四组是「一份」的数值，不是每 100 克——见 SERVING_GRAMS。
  */
-export const STARTER_FOODS: FoodTemplate[] = [...BREAKFAST, ...LUNCH, ...DINNER, ...SNACK]
+export const STARTER_FOODS: FoodTemplate[] = dedupeByName([
+  ...BREAKFAST,
+  ...LUNCH,
+  ...DINNER,
+  ...SNACK,
+  ...PANTRY,
+])
+
+function dedupeByName(foods: FoodTemplate[]): FoodTemplate[] {
+  const seen = new Set<string>()
+  return foods.filter((food) => (seen.has(food.name) ? false : seen.add(food.name)))
+}
+
+/**
+ * 生成器那 12 样各是「一份」，不是每 100 克。
+ *
+ * 食物库要按克换算，就必须知道一份大约多少克：不写的话默认按 100 克算，
+ * 于是「苹果 200 克」会被算成两倍还多（那份数值本身就不对应 100 克）。
+ * 单品表里的是每 100 克，所以不在这里。
+ *
+ * 这些是常见份量的近似值；用户记录时看到的是克数与总热量，可以自己改。
+ */
+const SERVING_GRAMS: Record<string, number> = {
+  燕麦牛奶: 350,
+  豆浆鸡蛋: 300,
+  全麦三明治: 200,
+  鸡胸肉盖饭: 450,
+  牛肉面: 500,
+  清蒸鱼套餐: 400,
+  '清炒时蔬 + 米饭': 400,
+  番茄鸡蛋面: 450,
+  鸡腿饭: 450,
+  苹果: 180,
+  酸奶: 150,
+  坚果: 30,
+}
+
+/** 食物库里的一行，含它的营养值对应的克数 */
+export function starterFoodRow(index: number) {
+  const food = STARTER_FOODS[index]
+  return {
+    id: starterFoodId(index),
+    name: food.name,
+    perGrams: SERVING_GRAMS[food.name] ?? 100,
+    calories: food.calories,
+    protein: food.protein,
+    carbs: food.carbs,
+    fat: food.fat,
+  }
+}
 
 export function starterFoodId(index: number): string {
   return `food-${String(index + 1).padStart(2, '0')}`
@@ -166,17 +224,7 @@ export async function seedDatabase(db: Db, options: SeedOptions = {}): Promise<S
 
     await tx
       .insert(foods)
-      .values(
-        STARTER_FOODS.map((food, index) => ({
-          id: starterFoodId(index),
-          name: food.name,
-          perGrams: 100,
-          calories: food.calories,
-          protein: food.protein,
-          carbs: food.carbs,
-          fat: food.fat,
-        })),
-      )
+      .values(STARTER_FOODS.map((_, index) => starterFoodRow(index)))
       .run()
 
     // 训练计划：固定周表
