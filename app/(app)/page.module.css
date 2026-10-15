@@ -116,6 +116,18 @@
   margin-top: 10px;
 }
 
+/* 日期选择与体重输入同一排；窄屏放不下时换行，各自成行 */
+.weightDate {
+  flex: 0 0 auto;
+  padding: 10px 12px;
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-tile);
+  background: var(--surface-card);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 15px;
+}
+
 .weightInput {
   flex: 1;
   min-width: 110px;

@@ -2,8 +2,9 @@ import Link from 'next/link'
 import HeroFigure from '@/components/HeroFigure'
 import RingGroup, { type RingSpec } from '@/components/RingGroup'
 import AiBadge from '@/components/AiBadge'
+import WeightForm from '../../WeightForm'
 import { today } from '@/lib/data/today'
-import { formatDayHeading } from '@/lib/data/dates'
+import { formatDayHeading, isValidDateKey } from '@/lib/data/dates'
 import { burnedCalories, isUpcoming, netCalories, sumMacros } from '@/lib/data/selectors'
 import { MEAL_SLOT_LABEL, type MealSlot } from '@/lib/data/types'
 import { dayLogFor, goalFor, weightFor } from '@/lib/db/queries'
@@ -12,11 +13,6 @@ import { getDb } from '@/lib/db/runtime'
 import styles from './day.module.css'
 
 const SLOTS: MealSlot[] = ['breakfast', 'lunch', 'dinner', 'snack']
-
-function isValidDateKey(value: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
-  return !Number.isNaN(new Date(value).getTime())
-}
 
 /**
  * 某日详情页。
@@ -162,6 +158,8 @@ export default async function DayDetail({
         ) : (
           <p className={styles.empty}>这一天没有体重记录。</p>
         )}
+        {/* 过去的某一天也能在这里补记：日期默认就是页面那天，未来不许 */}
+        <WeightForm currentKg={weight} date={date} minDate={user.startedAt} maxDate={TODAY} />
       </section>
     </main>
   )

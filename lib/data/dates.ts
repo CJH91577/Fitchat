@@ -18,6 +18,18 @@ export function addDays(key: string, delta: number): string {
   return toDateKey(d)
 }
 
+/**
+ * 是不是一个合法的日期键（YYYY-MM-DD 且真实存在）。
+ *
+ * 表单与路由参数里都会有「用户随手写的日期」，服务端在用它查库之前
+ * 必须先验格式——`new Date('2026-02-30')` 是 Invalid Date，但日期键
+ * 的语义要求它必须是一个真实存在的日子。
+ */
+export function isValidDateKey(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+  return !Number.isNaN(new Date(value).getTime())
+}
+
 // 1 = 周一 … 7 = 周日
 export function weekdayOf(key: string): number {
   const jsDay = parseKey(key).getDay() // 0 = 周日

@@ -171,8 +171,9 @@ export default async function Home() {
           </p>
         )}
         <p className={styles.hint}>建议起床后、进食前测量</p>
-        {/* 大数字是结果，这个小表单是入口：今天记过就预填，按钮写「改一下」 */}
-        <WeightForm todayKg={todayWeight} />
+        {/* 大数字是结果，这个小表单是入口：记过就预填，按钮写「改一下」；
+            日期可以改成过去的日子补记（未来不许，见 weight-action.ts） */}
+        <WeightForm currentKg={todayWeight} date={TODAY} minDate={user.startedAt} maxDate={TODAY} />
       </section>
     </main>
   )

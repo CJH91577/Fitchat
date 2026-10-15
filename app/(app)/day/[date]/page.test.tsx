@@ -6,7 +6,11 @@ import { today } from '@/lib/data/today'
 import { addDays } from '@/lib/data/dates'
 import { setupSeededDatabase } from '@/tests/seeded-db'
 
-vi.mock('next/navigation', () => ({ usePathname: () => '/day/2026-09-22' }))
+vi.mock('next/navigation', () => ({
+  usePathname: () => '/day/2026-09-22',
+  // 体重补记表单保存成功后会 router.refresh()
+  useRouter: () => ({ refresh: () => {} }),
+}))
 // 页面要求已登录：只替换「从请求里取令牌」这一步，会话查询与用户解析都照跑
 vi.mock('@/lib/auth/cookie', async () => (await import('@/tests/auth-cookie-mock')).cookieMock())
 
@@ -59,11 +63,21 @@ describe('某日详情页', () => {
     expect(screen.getAllByText(/[\d.]+ \/ [\d.]+/)).toHaveLength(2)
   })
 
-  it('只读：不提供任何记录入口', async () => {
+  it('饮食与运动仍是只读，没有记录入口（体重可以补记）', async () => {
     const ui = await DayDetail({ params: Promise.resolve({ date: '2026-09-22' }) })
     render(ui)
     expect(screen.queryByText('开始记录')).not.toBeInTheDocument()
     expect(screen.queryByText(/添加/)).not.toBeInTheDocument()
+  })
+
+  it('过去的某一天可以补记体重：表单默认就是那天', async () => {
+    const ui = await DayDetail({ params: Promise.resolve({ date: '2026-10-01' }) })
+    render(ui)
+
+    const dateInput = screen.getByLabelText('日期') as HTMLInputElement
+    expect(dateInput.value).toBe('2026-10-01')
+    expect(dateInput.max).toBe(today())
+    expect(screen.getByLabelText('体重（公斤）')).toBeInTheDocument()
   })
 
   it('日期早于开始使用日期时显示明确的空态，而非空日志', async () => {
