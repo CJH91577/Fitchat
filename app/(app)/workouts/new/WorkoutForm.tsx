@@ -109,6 +109,10 @@ export default function WorkoutForm({
         </div>
       )}
 
+      {plan !== null && plan.items.length === 0 && (
+        <p className={styles.hint}>今天计划是{plan.theme}。</p>
+      )}
+
       <form action={save} className={styles.form}>
         <input type="hidden" name="kind" value={mode} />
 

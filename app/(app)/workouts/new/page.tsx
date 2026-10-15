@@ -22,17 +22,18 @@ export default async function NewWorkout() {
   const [plan, day] = await Promise.all([planFor(db, user.id), dayLogFor(db, user, date)])
 
   const todayPlan = plan.find((day) => day.weekday === weekdayOf(date))
-  const planHint: PlanHint | null =
-    todayPlan && todayPlan.items.length > 0
-      ? {
-          theme: todayPlan.theme,
-          items: todayPlan.items.map((item) => ({
-            name: item.name,
-            sets: item.sets,
-            reps: item.reps,
-          })),
-        }
-      : null
+  // 休息日（items 为空）也要传下去：那天什么都不显示，看起来像功能坏了。
+  // 预填按钮只对非空的 items 渲染，休息态由表单自己说「今天计划是休息」。
+  const planHint: PlanHint | null = todayPlan
+    ? {
+        theme: todayPlan.theme,
+        items: todayPlan.items.map((item) => ({
+          name: item.name,
+          sets: item.sets,
+          reps: item.reps,
+        })),
+      }
+    : null
 
   const entries: TodayExercise[] = (day?.exercises ?? []).map((exercise) => ({
     id: exercise.id,

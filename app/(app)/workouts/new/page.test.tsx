@@ -1,13 +1,22 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi } from 'vitest'
+import NewWorkout from './page'
 import WorkoutForm from './WorkoutForm'
 import type { PlanHint, TodayExercise } from './types'
+import { setupSeededDatabase } from '@/tests/seeded-db'
 
 vi.mock('next/navigation', () => ({
   usePathname: () => '/workouts/new',
   useRouter: () => ({ refresh: () => {} }),
 }))
+// 页面级测试要求已登录：只替换「从请求里取令牌」这一步，会话查询与用户解析都照跑
+vi.mock('@/lib/auth/cookie', async () => (await import('@/tests/auth-cookie-mock')).cookieMock())
+// 把「今天」钉在周四（2026-10-15）：演示计划里周四就是「休息」，
+// 页面级测试才不随跑测试的星期几而变。
+vi.mock('@/lib/data/today', () => ({ today: () => '2026-10-15' }))
+
+setupSeededDatabase()
 
 const PLAN: PlanHint = {
   theme: '胸 + 三头',
@@ -134,5 +143,20 @@ describe('添加运动页', () => {
   it('今天还没有记录时说清楚', () => {
     renderForm(null, [])
     expect(screen.getByText('今天还没有运动记录。')).toBeInTheDocument()
+  })
+
+  it('休息日只给提示，不给预填按钮', () => {
+    renderForm({ theme: '休息', items: [] })
+    expect(screen.getByText('今天计划是休息。')).toBeInTheDocument()
+    expect(screen.queryByText(/今天该练/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /组 ×/ })).not.toBeInTheDocument()
+  })
+})
+
+describe('记录运动页（页面级：计划行要传下来）', () => {
+  it('休息日（周四）页面显示「今天计划是休息」，而不是什么都不显示', async () => {
+    render(await NewWorkout())
+    expect(screen.getByText('今天计划是休息。')).toBeInTheDocument()
+    expect(screen.queryByText(/今天该练/)).not.toBeInTheDocument()
   })
 })
