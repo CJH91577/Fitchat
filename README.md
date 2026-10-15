@@ -99,8 +99,15 @@ drizzle-orm/d1  ← 一个驱动，两种实现
 
 ## 文档
 
-- [部署与更新](DEPLOY.md)
-- [设计规格](docs/superpowers/specs/2026-09-22-fitchat-mvp-design.md)（含 2026-09-28 形态修订记录）
-- [实施计划](docs/superpowers/plans/2026-09-28-fitchat-shape-revision.md)（当前有效）
-- [手机端走查清单](docs/superpowers/plans/demo-走查清单.md)
-- 历史记录：[前端 Demo 实施计划](docs/superpowers/plans/2026-09-22-fitchat-frontend-demo.md)、[上线清单（Vercel，已取代）](docs/superpowers/plans/deploy-上线清单.md)
+- **[PROJECT.md](PROJECT.md)** —— **接手这个项目先读它**：目录结构、必须守住的不变量、领域语义、怎么验证、踩过的坑
+- **[TASKS.md](TASKS.md)** —— 待办清单，每条带验收标准
+- [部署与更新](DEPLOY.md)（腾讯云 + Docker；含账号、邀请码与升级注意事项）
+- [设计规格](docs/superpowers/specs/2026-09-22-fitchat-mvp-design.md)（含 2026-09-28 修订记录与 2026-10-14 实现状态）
+- [手机端走查清单](docs/superpowers/plans/demo-走查清单.md)（给人照着点的，不是自动化测试）
+
+更早的实施计划（包括已被取代的静态导出 / Vercel 方案）已从工作区删除——它们描述的形态与现在的代码不符，留着只会误导。需要考古时从 git 历史取：
+
+```bash
+git log --diff-filter=D --name-only -- 'docs/**'
+git show <那个 commit>^:docs/superpowers/plans/2026-09-28-fitchat-shape-revision.md
+```
