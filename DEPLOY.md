@@ -129,6 +129,15 @@ docker compose start app
 
 ## 七、排错
 
+出事了先看日志——两处都有：
+
+```bash
+sudo docker compose logs -f --tail=200 app   # 控制台：访问日志与错误，实时
+ls data/logs/                                # 文件：每日一个 app-YYYY-MM-DD.log，保留 14 天
+```
+
+日志文件落在数据库同一个卷上（`data/logs/`），重启容器不丢；每行是 JSON：`time`（ISO 时间）、`type`（`access` / `request-error` / `fatal`）、`level`。请求内出错（页面渲染、route handler、server action）会带 `path` / `method` / `routeType`，与访问日志前后对照即可定位「是哪次请求出的错」。未捕获的进程级异常记成 `fatal` 后进程退出，容器会自动重启（`restart: unless-stopped`）。
+
 | 现象 | 原因与处理 |
 |---|---|
 | 页面 500，日志报「找不到迁移文件」 | `MIGRATIONS_FOLDER` 指错了。镜像里设的是 `/app/drizzle`，且 `drizzle/` 必须真的被复制进镜像（见 Dockerfile 的 COPY）。**不要依赖相对路径**：Next 的 standalone server 启动时会把工作目录切到 `server.js` 所在目录。 |
