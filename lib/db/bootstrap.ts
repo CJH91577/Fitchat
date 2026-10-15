@@ -8,7 +8,7 @@ import { dbPath } from './index'
 import { applyMigrations } from './migrate'
 import { userById } from './queries'
 import { openLocalDb } from './runtime'
-import { SEED_HORIZON_DAYS, STARTER_FOODS, seedDatabase, starterFoodRow } from './seed'
+import { SEED_HORIZON_DAYS, STARTER_FOODS, seedDatabase, starterFoodRow, topUpDemoHorizon } from './seed'
 import { createInviteCodes, ensureFoodLibrary, setPasswordHashIfMissing } from './writes'
 
 /**
@@ -17,15 +17,19 @@ import { createInviteCodes, ensureFoodLibrary, setPasswordHashIfMissing } from '
  * 由 instrumentation.ts 在服务进程启动时调用一次，于是容器**不需要**在启动
  * 前跑一堆 Node 脚本：镜像里只有 standalone 产物，建库逻辑就是应用自己的一部分。
  *
- * 三件都是幂等的：
+ * 四件事都是幂等的：
  *   - 迁移由 drizzle 自己记账（__drizzle_migrations 表），重复执行安全；
  *   - 播种只在「演示用户不存在」时发生，所以重启容器、重建镜像都不会覆盖
  *     已有数据——写入（阶段 4）留下的记录不会因为一次部署而消失；
- *   - 邀请码与演示口令是「补齐」而不是「重建」：缺了才加，已有的一律不动。
+ *   - 演示用户已存在时，启动会检查 horizon 并续播（见 seed.ts 的
+ *     topUpDemoHorizon）：只补「最新记录之后」到「今天 + 90 天」的区间，
+ *     已有的行一个都不碰；
+ *   - 邀请码、食物库与演示口令是「补齐」而不是「重建」：缺了才加，已有的一律不动。
  *
- * 后一条是升级路径里必须的。这两样都只在「播种」那一步产生，而升级一个**已经
+ * 后两条是升级路径里必须的。这几样都只在「播种」那一步产生，而升级一个**已经
  * 跑起来的**站点时，演示用户早就在库里了——播种整段会被跳过，于是新加的邀请码
- * 永远不出现（谁都注册不了），文档里公开的演示口令也永远登不进去。
+ * 永远不出现（谁都注册不了），文档里公开的演示口令也永远登不进去。播种 90 天后
+ * 同理：不续播的话，演示账号首页会显示「未记录」，看起来像坏了。
  *
  * 注意：这套「启动即迁移」只适合单实例。多实例并发启动时要改成独立的迁移步骤，
  * 否则两个进程会同时建表。本项目就是一台机器上跑一个容器，所以够用。
@@ -49,6 +53,7 @@ export async function ensureDatabase(): Promise<void> {
       // 已有演示账号：只补它缺的东西（见上面的说明）
       const passwordHash = await hashPassword(process.env.DEMO_PASSWORD ?? DEMO_PASSWORD)
       await setPasswordHashIfMissing(db, DEMO_USER_ID, passwordHash)
+      await topUpDemoHorizon(db)
     }
 
     // 邀请码每次都「补齐」：已发出的（尤其是已用掉的）一个都不动，

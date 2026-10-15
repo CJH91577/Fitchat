@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, inArray, lte } from 'drizzle-orm'
+import { and, asc, desc, eq, gte, inArray, lte } from 'drizzle-orm'
 import { isInRange } from '../data/selectors'
 import type {
   DayLog,
@@ -242,6 +242,46 @@ export async function weightSeries(
     )
     .orderBy(asc(weightEntries.date))
     .all()
+}
+
+/**
+ * 用户记录的最新日期——饮食、运动、体重三张表里的最大日期。
+ *
+ * 只被播种续播用（见 seed.ts 的 topUpDemoHorizon）：续播只补「最新日期之后」
+ * 的区间，所以用户删过的日子不会被加回来，已有的行也一个都不会被碰。
+ *
+ * 日期键是 YYYY-MM-DD 文本，字典序就是日期序，直接比大小即可。
+ */
+export async function latestRecordDateFor(db: Db, userId: string): Promise<string | null> {
+  const [food, exercise, weight] = await Promise.all([
+    db
+      .select({ date: foodEntries.date })
+      .from(foodEntries)
+      .where(eq(foodEntries.userId, userId))
+      .orderBy(desc(foodEntries.date))
+      .limit(1)
+      .get(),
+    db
+      .select({ date: exerciseEntries.date })
+      .from(exerciseEntries)
+      .where(eq(exerciseEntries.userId, userId))
+      .orderBy(desc(exerciseEntries.date))
+      .limit(1)
+      .get(),
+    db
+      .select({ date: weightEntries.date })
+      .from(weightEntries)
+      .where(eq(weightEntries.userId, userId))
+      .orderBy(desc(weightEntries.date))
+      .limit(1)
+      .get(),
+  ])
+
+  const dates = [food?.date, exercise?.date, weight?.date].filter(
+    (date): date is string => date !== undefined,
+  )
+  if (dates.length === 0) return null
+  return dates.reduce((latest, date) => (date > latest ? date : latest))
 }
 
 /** 一周七天的训练计划，按星期升序（1 = 周一 … 7 = 周日） */

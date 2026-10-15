@@ -2,10 +2,12 @@ import { eq, inArray } from 'drizzle-orm'
 import type { FoodTemplate } from '../data/generator'
 import { BREAKFAST, DINNER, LUNCH, SNACK, generateDayLog, generateWeight } from '../data/generator'
 import { MOCK_GOAL, MOCK_PLAN, MOCK_USER, datesWithRecords } from '../data/mock'
+import { addDays } from '../data/dates'
 import { PANTRY } from '../data/pantry'
 import { today } from '../data/today'
 import { DEMO_INVITE_CODES, DEMO_USER_EMAIL, DEMO_USER_ID } from './demo'
 import type { Db } from './index'
+import { latestRecordDateFor } from './queries'
 import {
   exerciseEntries,
   foodEntries,
@@ -160,6 +162,85 @@ async function insertInBatches<T>(
   }
 }
 
+/**
+ * 按日期逐日生成记录行（不写库）。
+ *
+ * 播种与续播共用这一个函数：两条路径产出的行必须一模一样，否则「续播之后
+ * 的库」与「重新播种的库」会在同一日期上出现两套数据，谁也没法解释差异。
+ * 生成器对同一日期是确定性的（见 lib/data/dateSeed.ts），所以同一段日期
+ * 重跑多少遍都得到同一批行。
+ */
+function entryRowsForDates(
+  dates: string[],
+  userId: string,
+  foodIdByName: Map<string, string>,
+  now: Date,
+) {
+  const foodRows: (typeof foodEntries.$inferInsert)[] = []
+  const exerciseRows: (typeof exerciseEntries.$inferInsert)[] = []
+  const setRows: (typeof strengthSets.$inferInsert)[] = []
+  const weightRows: (typeof weightEntries.$inferInsert)[] = []
+
+  for (const date of dates) {
+    const day = generateDayLog(date, MOCK_GOAL)
+
+    for (const food of day.foods) {
+      foodRows.push({
+        id: food.id,
+        userId,
+        date,
+        slot: food.slot,
+        foodId: foodIdByName.get(food.name) ?? null,
+        name: food.name,
+        grams: food.grams,
+        source: food.source,
+        // 存的是当时的估算值（快照），不随食物库日后修正而变
+        calories: food.totals.calories,
+        protein: food.totals.protein,
+        carbs: food.totals.carbs,
+        fat: food.totals.fat,
+        createdAt: now,
+      })
+    }
+
+    for (const exercise of day.exercises) {
+      exerciseRows.push({
+        id: exercise.id,
+        userId,
+        date,
+        kind: exercise.kind,
+        name: exercise.name,
+        minutes: exercise.minutes ?? null,
+        caloriesBurned: exercise.caloriesBurned,
+        createdAt: now,
+      })
+      exercise.sets?.forEach((set, index) => {
+        setRows.push({
+          id: `${exercise.id}-set-${index + 1}`,
+          entryId: exercise.id,
+          setIndex: index + 1,
+          reps: set.reps,
+          weightKg: set.weightKg,
+        })
+      })
+    }
+
+    weightRows.push({
+      userId,
+      date,
+      kg: generateWeight(
+        date,
+        MOCK_USER.startedAt,
+        MOCK_USER.startWeightKg,
+        MOCK_GOAL.targetWeightKg,
+      ),
+      createdAt: now,
+    })
+  }
+
+  return { foodRows, exerciseRows, setRows, weightRows }
+}
+
 export async function seedDatabase(db: Db, options: SeedOptions = {}): Promise<SeedSummary> {
   const email = options.email ?? DEMO_USER_EMAIL
   const from = options.from ?? MOCK_USER.startedAt
@@ -254,68 +335,12 @@ export async function seedDatabase(db: Db, options: SeedOptions = {}): Promise<S
     }
 
     // 逐日生成记录
-    const dates = datesWithRecords(from, to)
-    const foodRows: (typeof foodEntries.$inferInsert)[] = []
-    const exerciseRows: (typeof exerciseEntries.$inferInsert)[] = []
-    const setRows: (typeof strengthSets.$inferInsert)[] = []
-    const weightRows: (typeof weightEntries.$inferInsert)[] = []
-
-    for (const date of dates) {
-      const day = generateDayLog(date, MOCK_GOAL)
-
-      for (const food of day.foods) {
-        foodRows.push({
-          id: food.id,
-          userId,
-          date,
-          slot: food.slot,
-          foodId: foodIdByName.get(food.name) ?? null,
-          name: food.name,
-          grams: food.grams,
-          source: food.source,
-          // 存的是当时的估算值（快照），不随食物库日后修正而变
-          calories: food.totals.calories,
-          protein: food.totals.protein,
-          carbs: food.totals.carbs,
-          fat: food.totals.fat,
-          createdAt: now,
-        })
-      }
-
-      for (const exercise of day.exercises) {
-        exerciseRows.push({
-          id: exercise.id,
-          userId,
-          date,
-          kind: exercise.kind,
-          name: exercise.name,
-          minutes: exercise.minutes ?? null,
-          caloriesBurned: exercise.caloriesBurned,
-          createdAt: now,
-        })
-        exercise.sets?.forEach((set, index) => {
-          setRows.push({
-            id: `${exercise.id}-set-${index + 1}`,
-            entryId: exercise.id,
-            setIndex: index + 1,
-            reps: set.reps,
-            weightKg: set.weightKg,
-          })
-        })
-      }
-
-      weightRows.push({
-        userId,
-        date,
-        kg: generateWeight(
-          date,
-          MOCK_USER.startedAt,
-          MOCK_USER.startWeightKg,
-          MOCK_GOAL.targetWeightKg,
-        ),
-        createdAt: now,
-      })
-    }
+    const { foodRows, exerciseRows, setRows, weightRows } = entryRowsForDates(
+      datesWithRecords(from, to),
+      userId,
+      foodIdByName,
+      now,
+    )
 
     await insertInBatches(foodRows, (batch) => tx.insert(foodEntries).values(batch).run())
     await insertInBatches(exerciseRows, (batch) => tx.insert(exerciseEntries).values(batch).run())
@@ -344,4 +369,79 @@ export async function seedDatabase(db: Db, options: SeedOptions = {}): Promise<S
   )
 
   return summary
+}
+
+/**
+ * 续播触发阈值（天）：剩余 horizon 少于这么多天时，启动时把它补回 90 天。
+ *
+ * 不能设成 90（每次启动都补）：那样每重启一次容器就写一批行。也不能太小：
+ * 续播只发生在启动时，站点若连续运行超过剩余 horizon 天数，过期是拦不住的，
+ * 所以阈值要留出足够宽的窗口，让「最近一次重启」大概率落在窗口里。
+ */
+export const RESEED_THRESHOLD_DAYS = 7
+
+export type TopUpSummary = {
+  foodEntries: number
+  exerciseEntries: number
+  strengthSets: number
+  weightEntries: number
+}
+
+/**
+ * 给演示账号补写 from..to（含两端）的记录行。
+ *
+ * 只插入、不删不改：调用方负责把 from 定在「库里已有记录之后」，
+ * 这样续播永远不会碰到已有行——包括用户自己改过的体重、删过的日子。
+ */
+export async function topUpDatabase(
+  db: Db,
+  options: { from: string; to: string; now?: Date },
+): Promise<TopUpSummary> {
+  const now = new Date(options.now ?? Date.now())
+  const foodIdByName = new Map<string, string>()
+  STARTER_FOODS.forEach((food, index) => foodIdByName.set(food.name, starterFoodId(index)))
+
+  return db.transaction(async (tx) => {
+    const { foodRows, exerciseRows, setRows, weightRows } = entryRowsForDates(
+      datesWithRecords(options.from, options.to),
+      DEMO_USER_ID,
+      foodIdByName,
+      now,
+    )
+
+    await insertInBatches(foodRows, (batch) => tx.insert(foodEntries).values(batch).run())
+    await insertInBatches(exerciseRows, (batch) => tx.insert(exerciseEntries).values(batch).run())
+    await insertInBatches(setRows, (batch) => tx.insert(strengthSets).values(batch).run())
+    await insertInBatches(weightRows, (batch) => tx.insert(weightEntries).values(batch).run())
+
+    return {
+      foodEntries: foodRows.length,
+      exerciseEntries: exerciseRows.length,
+      strengthSets: setRows.length,
+      weightEntries: weightRows.length,
+    }
+  })
+}
+
+/**
+ * 启动时把演示数据的 horizon 补满：库里最后一天早于「今天 + 阈值」就补到
+ * 「今天 + 90 天」，否则什么都不做。
+ *
+ * 为什么不能简单重播：seedDatabase 会按 cascade 删掉演示用户重来，用户
+ * 在演示账号里留下的真实写入（改过的体重、删过的日子）会一起消失。续播
+ * 只从「最新记录日期之后」接着写——用户删过的日子不会被加回来。
+ *
+ * 返回 null 表示这次启动不需要续播。
+ */
+export async function topUpDemoHorizon(
+  db: Db,
+  now: Date = new Date(),
+): Promise<TopUpSummary | null> {
+  const latest = await latestRecordDateFor(db, DEMO_USER_ID)
+  if (latest !== null && latest >= addDays(today(), RESEED_THRESHOLD_DAYS)) return null
+
+  // 一行记录都没有（例如被清空过）：从开始使用日期整段补回来，
+  // 演示站「打开就有内容」比「尊重一次清空操作」更值得守。
+  const from = latest === null ? MOCK_USER.startedAt : addDays(latest, 1)
+  return topUpDatabase(db, { from, to: addDays(today(), SEED_HORIZON_DAYS), now })
 }
