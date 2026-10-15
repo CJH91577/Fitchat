@@ -37,6 +37,12 @@ describe('SurplusTable', () => {
     expect(screen.getByText(/还没有饮食记录/)).toBeInTheDocument()
   })
 
+  it('空态文案可以由页面覆盖（区分「没有目标」与「没有记录」）', () => {
+    render(<SurplusTable rows={[]} emptyText="还没有设定每日目标。" />)
+    expect(screen.getByText(/还没有设定每日目标/)).toBeInTheDocument()
+    expect(screen.queryByText(/还没有饮食记录/)).not.toBeInTheDocument()
+  })
+
   it('表格容器可滚动（固定高度）', () => {
     render(<SurplusTable rows={[{ date: '2026-09-22', surplus: 0 }]} />)
     expect(screen.getByTestId('surplus-table-scroll')).toBeInTheDocument()

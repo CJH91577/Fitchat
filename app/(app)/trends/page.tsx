@@ -180,7 +180,10 @@ export default async function Trends() {
           <span className={styles.cardMeta}>最近 7 天</span>
         </div>
         {surplusLine !== null && <p className={styles.summary}>{surplusLine}</p>}
-        <SurplusTable rows={surplusRows} />
+        <SurplusTable
+          rows={surplusRows}
+          emptyText={goal === null ? '还没有设定每日目标。' : undefined}
+        />
       </section>
     </main>
   )

@@ -7,9 +7,19 @@ export function formatSurplus(surplus: number): string {
   return surplus > 0 ? `+${surplus}` : `−${Math.abs(surplus)}`
 }
 
-export default function SurplusTable({ rows }: { rows: SurplusRow[] }) {
+export default function SurplusTable({
+  rows,
+  emptyText = '这段时间还没有饮食记录。',
+}: {
+  rows: SurplusRow[]
+  /**
+   * 空态文案由页面决定：热量卡空掉有两种不同的原因——「没有目标」
+   * 与「没有记录」，把两种状态都说成同一种会误导用户。
+   */
+  emptyText?: string
+}) {
   if (rows.length === 0) {
-    return <p className={styles.empty}>这段时间还没有饮食记录。</p>
+    return <p className={styles.empty}>{emptyText}</p>
   }
 
   return (

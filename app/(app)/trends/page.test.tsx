@@ -1,11 +1,15 @@
 import { render, screen } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
+import { eq } from 'drizzle-orm'
 import Trends from './page'
 import { formatSurplus } from '@/components/SurplusTable'
 import { MOCK_GOAL, MOCK_USER, dayLogFor, weightFor } from '@/lib/data/mock'
 import { addDays, formatMonthDay, lastNDays } from '@/lib/data/dates'
 import { today } from '@/lib/data/today'
 import { calorieSurplus, isCalorieOnTarget } from '@/lib/data/selectors'
+import { DEMO_USER_ID } from '@/lib/db/demo'
+import { openLocalDb } from '@/lib/db/runtime'
+import { goals } from '@/lib/db/schema'
 import { setupSeededDatabase } from '@/tests/seeded-db'
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/trends' }))
@@ -119,5 +123,31 @@ describe('趋势页', () => {
         : `7 天里有记录的 ${logged.length} 天，其中 ${onTarget} 天热量达成目标。`
 
     expect(screen.getByText(expected)).toBeInTheDocument()
+  })
+
+  it('没有目标时热量卡说「还没有设定每日目标」，而不是「没有饮食记录」', async () => {
+    // 把目标行删掉：真实原因是「没目标」，不是「没记录」——两种状态不许混为一谈
+    const path = process.env.DATABASE_PATH
+    if (!path) throw new Error('setupSeededDatabase() 应该已经指好库路径')
+    const wipe = openLocalDb(path)
+    await wipe.db.delete(goals).where(eq(goals.userId, DEMO_USER_ID)).run()
+    wipe.close()
+
+    try {
+      render(await Trends())
+      expect(screen.getByText('还没有设定每日目标。')).toBeInTheDocument()
+      expect(screen.queryByText(/还没有饮食记录/)).not.toBeInTheDocument()
+      // 没有目标就什么数字都算不出来：不许渲染 NaN 或编一个 0 千卡
+      expect(screen.queryByText(/NaN/)).not.toBeInTheDocument()
+      expect(screen.queryByText(/千卡/)).not.toBeInTheDocument()
+    } finally {
+      // 复原目标：同文件里的其他测试都假设演示用户有目标
+      const restore = openLocalDb(path)
+      await restore.db
+        .insert(goals)
+        .values({ userId: DEMO_USER_ID, ...MOCK_GOAL, updatedAt: new Date() })
+        .run()
+      restore.close()
+    }
   })
 })
