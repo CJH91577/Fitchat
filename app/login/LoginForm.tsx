@@ -9,8 +9,12 @@ import styles from './login.module.css'
  * 登录 / 注册表单。
  *
  * 客户端组件，因为它要切换「登录 / 注册」两种形态并显示服务端返回的错误；
- * 提交本身走 Server Action（表单的 action 属性），所以即使 JS 没跑起来，
- * 表单也照样能提交——校验与跳转都在服务端。
+ * 提交本身走 Server Action，校验、建会话与跳转都在服务端。
+ *
+ * 但**没有 JS 时这两个表单提交不了**：客户端组件渲染出来的表单不会带上 Next
+ * 用于渐进增强的那个 action id 字段（线上实测：HTML 里搜不到 `$ACTION_ID_`，
+ * `action` 属性是空串）。所以这里不能写「JS 没跑也能提交」——那是服务端组件里
+ * 直接写 `<form action={serverAction}>` 才有的待遇，而这个表单要切换两种形态。
  */
 
 type Mode = 'signin' | 'register'
