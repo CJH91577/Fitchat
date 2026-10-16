@@ -134,6 +134,20 @@ export async function createInviteCodes(
     .run()
 }
 
+/**
+ * 作废一张还没用掉的邀请码（管理端 CLI 用）。
+ *
+ * 已经用掉的码**不能**作废：它是历史记录，「谁用哪张码注册的」不该
+ * 因为一次管理操作断掉。返回 false 表示这张码不存在或已经用掉。
+ */
+export async function revokeInviteCode(db: Db, code: string): Promise<boolean> {
+  const row = await db.select().from(inviteCodes).where(eq(inviteCodes.code, code)).get()
+  if (!row || row.usedAt !== null) return false
+
+  await db.delete(inviteCodes).where(eq(inviteCodes.code, code)).run()
+  return true
+}
+
 export type FoodLibraryRow = {
   id: string
   name: string

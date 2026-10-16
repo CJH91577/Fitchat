@@ -90,7 +90,17 @@ sudo certbot --nginx -d 你的域名      # 申请证书并把上面的配置改
 
 - **演示账号**：`demo@fitchat.local` / `fitchat-demo`（口令公开，登录页上还有一个「先看看演示账号」按钮，点一下就能进）。它里面的数据是按日期确定性生成的假数据。
 - **随部署附送三个一次性邀请码**，写在 `lib/db/demo.ts` 里（`FITCHAT-DEMO-1/2/3`，也是公开的）。它们不是安全边界，而是把「陌生人能注册几个账号」从无穷限到三个。
-- 想换成自己的码，直接往库里插（**码值请用大写**，登录页会把输入转成大写再查）：
+- 想换成自己的码，用管理 CLI（宿主机装好 Node，在源码目录里跑；`DATABASE_PATH` 指到数据卷上的库）：
+
+```bash
+cd /home/ubuntu/fitchat
+export DATABASE_PATH=/home/ubuntu/fitchat/data/fitchat.db
+npm run invite -- issue --count 3 --note 给张三   # 发 3 张码
+npm run invite -- list                          # 列出全部码（含谁用了）
+npm run invite -- revoke --code XXXXXXXX        # 作废一张没用掉的码
+```
+
+已用掉的码不能作废（它是「谁用哪张码注册的」历史记录）。紧急时也可以直接插库（**码值请用大写**，登录页会把输入转成大写再查）：
 
 ```bash
 docker compose exec app node -e "const D=require('better-sqlite3');const db=new D('/data/fitchat.db');db.prepare('INSERT OR IGNORE INTO invite_codes (code, note, created_at) VALUES (?,?,?)').run('你的码','给谁',Date.now());db.close()"

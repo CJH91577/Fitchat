@@ -100,6 +100,34 @@ export async function inviteCodeFor(db: Db, code: string): Promise<InviteCodeRow
   }
 }
 
+export type InviteCodeAdminRow = InviteCodeRow & {
+  /** 用掉这张码的人（没有就是 null）；只给管理端看 */
+  usedByEmail: string | null
+}
+
+/**
+ * 全部邀请码（管理端 CLI 用），带「谁用了」。
+ *
+ * 按创建时间倒序：最新发的在最上面。used_by_user_id 是外键，
+ * 联到 users 拿邮箱；码被用掉之后用户再删号（on delete set null），
+ * 这里仍然能看到 used_at，只是邮箱为 null。
+ */
+export async function inviteCodesForAdmin(db: Db): Promise<InviteCodeAdminRow[]> {
+  const rows = await db
+    .select({
+      code: inviteCodes.code,
+      note: inviteCodes.note,
+      usedByUserId: inviteCodes.usedByUserId,
+      usedAt: inviteCodes.usedAt,
+      usedByEmail: users.email,
+    })
+    .from(inviteCodes)
+    .leftJoin(users, eq(inviteCodes.usedByUserId, users.id))
+    .orderBy(desc(inviteCodes.createdAt))
+    .all()
+  return rows
+}
+
 /**
  * 登录校验专用：只取「谁的、什么散列」，不取别的。
  *
