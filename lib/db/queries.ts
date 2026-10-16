@@ -343,3 +343,109 @@ export async function planFor(db: Db, userId: string): Promise<PlanDay[]> {
       .map((item) => ({ name: item.name, sets: item.sets, reps: item.reps })),
   }))
 }
+
+/** 「导出我的记录」的数据形状：一次取全，避免逐日 N 次查询 */
+export type UserExport = {
+  exportedAt: string
+  profile: {
+    email: string
+    heightCm: number | null
+    age: number | null
+    sex: 'male' | 'female' | null
+    startedAt: string
+    timezone: string
+  }
+  goal: UserGoal | null
+  foodEntries: {
+    date: string
+    slot: string
+    name: string
+    grams: number
+    source: string
+    calories: number
+    protein: number
+    carbs: number
+    fat: number
+  }[]
+  exerciseEntries: {
+    date: string
+    kind: 'cardio' | 'strength'
+    name: string
+    minutes: number | null
+    caloriesBurned: number
+    sets: { reps: number; weightKg: number }[]
+  }[]
+  weightEntries: { date: string; kg: number }[]
+  plan: PlanDay[]
+}
+
+export async function userExportData(db: Db, user: DbUser): Promise<UserExport> {
+  const [goal, plan, foodRows, exerciseRows, weightRows] = await Promise.all([
+    goalFor(db, user.id),
+    planFor(db, user.id),
+    db
+      .select()
+      .from(foodEntries)
+      .where(eq(foodEntries.userId, user.id))
+      .orderBy(asc(foodEntries.date), asc(foodEntries.id))
+      .all(),
+    db
+      .select()
+      .from(exerciseEntries)
+      .where(eq(exerciseEntries.userId, user.id))
+      .orderBy(asc(exerciseEntries.date), asc(exerciseEntries.id))
+      .all(),
+    db
+      .select()
+      .from(weightEntries)
+      .where(eq(weightEntries.userId, user.id))
+      .orderBy(asc(weightEntries.date))
+      .all(),
+  ])
+
+  const strengthIds = exerciseRows.filter((row) => row.kind === 'strength').map((row) => row.id)
+  const setRows = strengthIds.length
+    ? await db
+        .select()
+        .from(strengthSets)
+        .where(inArray(strengthSets.entryId, strengthIds))
+        .orderBy(asc(strengthSets.entryId), asc(strengthSets.setIndex))
+        .all()
+    : []
+
+  return {
+    exportedAt: new Date().toISOString(),
+    profile: {
+      email: user.email,
+      heightCm: user.heightCm,
+      age: user.age,
+      sex: user.sex,
+      startedAt: user.startedAt,
+      timezone: user.timezone,
+    },
+    goal,
+    foodEntries: foodRows.map((row) => ({
+      date: row.date,
+      slot: row.slot,
+      name: row.name,
+      grams: row.grams,
+      source: row.source,
+      calories: row.calories,
+      protein: row.protein,
+      carbs: row.carbs,
+      fat: row.fat,
+    })),
+    exerciseEntries: exerciseRows.map((row) => ({
+      date: row.date,
+      kind: row.kind,
+      name: row.name,
+      minutes: row.minutes,
+      caloriesBurned: row.caloriesBurned,
+      sets: setRows
+        .filter((set) => set.entryId === row.id)
+        .map((set) => ({ reps: set.reps, weightKg: set.weightKg })),
+    })),
+    weightEntries: weightRows.map((row) => ({ date: row.date, kg: row.kg })),
+    plan,
+  }
+}

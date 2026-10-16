@@ -52,4 +52,10 @@ describe('我的页', () => {
     expect(button).toHaveAttribute('type', 'submit')
     expect(screen.queryByRole('link', { name: '退出登录' })).not.toBeInTheDocument()
   })
+
+  it('有导出入口：数据是用户自己的，一键拿走', async () => {
+    render(await Me())
+    const link = screen.getByRole('link', { name: /导出我的记录/ })
+    expect(link).toHaveAttribute('href', '/export')
+  })
 })

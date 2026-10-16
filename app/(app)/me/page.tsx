@@ -87,6 +87,11 @@ export default async function Me() {
         训练计划
       </Link>
 
+      {/* 数据是你自己的：一键拿走全部记录（只含当前登录用户的数据） */}
+      <Link href="/export" className={styles.link}>
+        导出我的记录（JSON）
+      </Link>
+
       {/* 退出登录是**一次真正的注销**：Server Action 删掉库里的会话行再清 Cookie。
           这里以前是一个指向 /login 的链接——那只是换了页面，会话还是活的。 */}
       <form action={signOutAction}>
