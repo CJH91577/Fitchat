@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // 服务器备份校验脚本：在容器里用纯 node 运行（不能依赖 TS 工具链），
+    // 必须是 CommonJS——ESLint 的 no-require-imports 对它不适用
+    "scripts/check-backup.js",
   ]),
 ]);
 

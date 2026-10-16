@@ -25,19 +25,21 @@
 ssh-keygen -t ed25519 -C "fitchat-server"
 
 # 2) 把公钥装到服务器（这一步还用的是口令登录）
-ssh-copy-id ubuntu@<服务器IP>
+ssh-copy-id -i ~/.ssh/id_ed25519.pub ubuntu@<服务器IP>
 
 # 3) 验证免密登录
 ssh -o BatchMode=yes ubuntu@<服务器IP> 'echo ok'      # 输出 ok 才算数
 
 # 4) 关掉口令登录
-sudo sed -i -E 's/^#?PasswordAuthentication\s+yes/PasswordAuthentication no/' /etc/ssh/sshd_config
-echo 'PasswordAuthentication no' | sudo tee -a /etc/ssh/sshd_config.d/99-fitchat.conf
-sudo systemctl reload ssh
+printf 'PasswordAuthentication no\n' | sudo tee /etc/ssh/sshd_config.d/00-fitchat.conf
+sudo sshd -t && sudo systemctl reload ssh
 
 # 5) 验收
-sshd -T | grep -i passwordauthentication          # 应当全是 no
+sshd -T | grep -i passwordauthentication          # 应当是 no
+ssh -o BatchMode=yes -o PreferredAuthentications=password ubuntu@<服务器IP> 'x'   # 应当 Permission denied
 ```
+
+**为什么文件名必须 `00-` 开头**：腾讯云镜像的 `/etc/ssh/sshd_config.d/50-cloud-init.conf` 里有一句 `PasswordAuthentication yes`，而 OpenSSH 对配置是**先匹配先赢**——用 `99-` 开头会被它压住，`sshd -T` 仍然显示 yes（线上实测踩过）。改成 `00-` 排在最前才生效。
 
 **注意**：腾讯云控制台网页里那个「登录」用的是另一套机制（VNC/镜像注入），不受 sshd 配置影响——即使误操作把自己锁在 SSH 外面，控制台网页登录仍然是退路。
 
@@ -164,27 +166,31 @@ docker compose up -d --build
 
 ## 六、备份
 
-备份用 `scripts/backup.sh`：容器里的 better-sqlite3 在线 backup（WAL 模式下仍然一致），**不需要停容器**——之前「先停容器再 cp」是给手动操作的安全下限，脚本走的是 SQLite 自己的备份 API。
+备份用 `scripts/backup.sh`：容器里的 better-sqlite3 在线 backup（WAL 模式下仍然一致），**不需要停容器**——之前「先停容器再 cp」是给手动操作的安全下限，脚本走的是 SQLite 自己的备份 API。注意 `docker` 命令需要 `sudo`（ubuntu 用户不在 docker 组里），所以手动跑要加 `sudo`；cron 装在 **root** 的 crontab 里，root 能直接碰 docker socket。
 
 先手动跑一次确认能成：
 
 ```bash
-mkdir -p backups
-./scripts/backup.sh
-# 验证当天那份能打开且完整：
-docker compose exec -T app node -e "const D=require('better-sqlite3');const db=new D('/backups/fitchat-$(date +%F).db',{readonly:true});console.log(db.pragma('integrity_check'));db.close()"
-# 应当输出 [ 'ok' ]
+sudo ./scripts/backup.sh
+# 验证当天那份能打开且完整（用 fitchat 镜像挂载跑，行数与线上库对比）：
+sudo docker run --rm --user root \
+  -v /home/ubuntu/fitchat/backups:/b \
+  -v /home/ubuntu/fitchat/scripts/check-backup.js:/app/x.js:ro \
+  -w /app fitchat:latest node /app/x.js
+# 应当输出 integrity: ok，且各表行数与 docker compose exec 查线上库一致
 ```
 
-然后装进 crontab 每日自动跑（保留最近 14 份）：
+然后装进 **root** 的 crontab 每日自动跑（保留最近 14 份）：
 
 ```bash
-crontab -e
+sudo crontab -e
 # 加入（分钟避开整点，别和全球的整点任务挤在一起）：
 7 3 * * * /home/ubuntu/fitchat/scripts/backup.sh >> /home/ubuntu/fitchat/backups/backup.log 2>&1
 ```
 
-`docker-compose.yml` 里已经挂了 `./backups:/backups`，备份落在宿主机 `backups/` 目录（在数据卷**外面**——`rm -rf data` 不会带走备份）。
+两个实测坑：① `backups/` 目录要 `sudo chown -R 10001:10001 backups`——容器以 uid 10001 运行，不交出去备份写不进去（和 `data/` 是同一个道理）；② better-sqlite3 13.x 的 `db.backup()` 是异步的，脚本里必须 `await` 完再 `close()`。
+
+`docker-compose.yml` 里挂了 `./backups:/backups`，备份落在宿主机 `backups/` 目录（在数据卷**外面**——`rm -rf data` 不会带走备份）。
 
 丢数据的代价目前不低：库里已经有真实写入（记录饮食、运动、体重、目标）。**升级前先备份**，尤其是带表重建的迁移。
 

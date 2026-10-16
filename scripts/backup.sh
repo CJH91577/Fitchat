@@ -18,10 +18,17 @@ STAMP="$(date +%F)"
 
 docker compose exec -T app node -e "
 const D = require('better-sqlite3');
-const db = new D('/data/fitchat.db');
-db.backup('/backups/fitchat-$STAMP.db');
-db.close();
-console.log('backup ok: /backups/fitchat-$STAMP.db');
+(async () => {
+  const db = new D('/data/fitchat.db');
+  // better-sqlite3 13.x 的 backup 是异步的（返回 Promise）：必须 await 完
+  // 才能 close，否则备份在连接关闭后才真正执行，报 connection is not open
+  await db.backup('/backups/fitchat-$STAMP.db');
+  db.close();
+  console.log('backup ok: /backups/fitchat-$STAMP.db');
+})().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});
 "
 
 # 保留最近 14 份，更早的删掉
