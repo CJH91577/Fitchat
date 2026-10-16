@@ -1,6 +1,16 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import CalendarView from './CalendarView'
+
+// 翻月会按需取数（Server Action）。默认返回空——既有用例的行为与
+// 「服务端没送数据」一致：区间内按未达成渲染。
+// 泛型写的是 action 的真实签名——实现不接参数，但 mock.calls 的元组类型要靠它。
+const actions = vi.hoisted(() => ({
+  fetchMonthResults: vi.fn<
+    (year: number, month: number) => Promise<Record<string, { calories: boolean; exercise: boolean }>>
+  >(async () => ({})),
+}))
+vi.mock('@/app/(app)/calendar/actions', () => actions)
 
 describe('日历视图', () => {
   it('开始使用之前的月份不渲染任何日期链接', () => {
@@ -8,7 +18,7 @@ describe('日历视图', () => {
       <CalendarView
         today="2026-09-22"
         startedAt="2025-09-22"
-        dayResults={{}}
+        initialDayResults={{}}
         initialYear={2025}
         initialMonth={8}
       />,
@@ -22,7 +32,7 @@ describe('日历视图', () => {
       <CalendarView
         today="2026-09-22"
         startedAt="2025-09-22"
-        dayResults={{}}
+        initialDayResults={{}}
         initialYear={2099}
         initialMonth={1}
       />,
@@ -36,7 +46,7 @@ describe('日历视图', () => {
       <CalendarView
         today="2026-01-20"
         startedAt="2026-01-15"
-        dayResults={{
+        initialDayResults={{
           '2026-01-15': { calories: true, exercise: false },
           '2026-01-20': { calories: false, exercise: true },
         }}
@@ -68,7 +78,7 @@ describe('日历视图', () => {
       <CalendarView
         today="2026-01-20"
         startedAt="2025-09-22"
-        dayResults={{}}
+        initialDayResults={{}}
         initialYear={2026}
         initialMonth={1}
       />,
@@ -83,7 +93,7 @@ describe('日历视图', () => {
       <CalendarView
         today="2026-01-20"
         startedAt="2025-09-22"
-        dayResults={{}}
+        initialDayResults={{}}
         initialYear={2026}
         initialMonth={1}
       />,
@@ -98,7 +108,7 @@ describe('日历视图', () => {
       <CalendarView
         today="2026-01-20"
         startedAt="2025-09-22"
-        dayResults={{}}
+        initialDayResults={{}}
         initialYear={2026}
         initialMonth={1}
       />,
@@ -113,7 +123,7 @@ describe('日历视图', () => {
       <CalendarView
         today="2026-01-20"
         startedAt="2025-09-22"
-        dayResults={{}}
+        initialDayResults={{}}
         initialYear={2026}
         initialMonth={1}
       />,
@@ -122,5 +132,35 @@ describe('日历视图', () => {
     expect(screen.getByText('2025 年 12 月')).toBeInTheDocument()
     fireEvent.click(screen.getByLabelText('下个月'))
     expect(screen.getByText('2026 年 1 月')).toBeInTheDocument()
+  })
+
+  it('翻月时按需取数：取回的结果补进网格，且每个已加载的月份只取一次', async () => {
+    actions.fetchMonthResults.mockResolvedValue({
+      '2025-12-10': { calories: true, exercise: true },
+    })
+
+    render(
+      <CalendarView
+        today="2026-01-20"
+        startedAt="2025-09-22"
+        initialDayResults={{}}
+        initialYear={2026}
+        initialMonth={1}
+      />,
+    )
+
+    fireEvent.click(screen.getByLabelText('上个月'))
+    expect(actions.fetchMonthResults).toHaveBeenCalledWith(2025, 12)
+    expect(
+      await screen.findByRole('link', { name: /2025-12-10，热量达成，运动达成/ }),
+    ).toBeInTheDocument()
+
+    // 翻走再翻回来：不再重复取数
+    fireEvent.click(screen.getByLabelText('下个月'))
+    fireEvent.click(screen.getByLabelText('上个月'))
+    expect(actions.fetchMonthResults).toHaveBeenCalledTimes(1)
+    expect(
+      screen.getByRole('link', { name: /2025-12-10，热量达成，运动达成/ }),
+    ).toBeInTheDocument()
   })
 })

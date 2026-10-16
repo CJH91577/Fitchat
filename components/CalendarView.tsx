@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import CalendarMonth, { type DayStatus } from './CalendarMonth'
+import { fetchMonthResults } from '@/app/(app)/calendar/actions'
 import { monthGrid } from '@/lib/data/dates'
 import { isInRange, isUpcoming } from '@/lib/data/selectors'
 import styles from './CalendarView.module.css'
@@ -15,20 +16,25 @@ export type CalendarViewProps = {
   /** 开始使用日期；早于它的日子是「尚未开始使用」 */
   startedAt: string
   /**
-   * [startedAt, today] 区间内每一天的达成情况。
-   * 客户端查不了数据库（静态导出后没有服务端），而翻月是纯客户端交互，
-   * 所以这段时间的数据必须由服务端随页面一起送过来。
+   * **首月**（今天所在月）的达成情况，随首屏一起送过来。
+   * 其它月份不再随页面下发——翻到哪个月，才按需取哪个月
+   *（见 app/(app)/calendar/actions.ts）。取回来之前的月份
+   * 先按「未达成」渲染，与服务端没送数据的旧行为一致。
    */
-  dayResults: Record<string, DayResult>
+  initialDayResults: Record<string, DayResult>
   /** 仅供测试：直接落到某个月 */
   initialYear?: number
   initialMonth?: number
 }
 
+function monthKey(year: number, month: number): string {
+  return `${year}-${month}`
+}
+
 export default function CalendarView({
   today,
   startedAt,
-  dayResults,
+  initialDayResults,
   initialYear,
   initialMonth,
 }: CalendarViewProps) {
@@ -36,6 +42,13 @@ export default function CalendarView({
   // 写死的话，一旦「今天」变了，这里会与首页和月历高亮各说各话。
   const [year, setYear] = useState(initialYear ?? Number(today.slice(0, 4)))
   const [month, setMonth] = useState(initialMonth ?? Number(today.slice(5, 7)))
+
+  const [resultsByMonth, setResultsByMonth] = useState<
+    Record<string, Record<string, DayResult>>
+  >({ [monthKey(year, month)]: initialDayResults })
+  const [loadedMonths, setLoadedMonths] = useState<Set<string>>(
+    () => new Set([monthKey(year, month)]),
+  )
 
   const cells = monthGrid(year, month)
 
@@ -46,18 +59,40 @@ export default function CalendarView({
   const monthIsOutOfRange = lastCell !== null && !isInRange(lastCell, startedAt)
   const monthIsUpcoming = firstCell !== null && isUpcoming(firstCell, today)
 
+  // 翻月后按需取数：还没到的月份与开始使用之前的月份不需要数据，
+  // 取回来的结果补进当前月的网格（在 .then 里 setState——外部数据
+  // 到达的回调，不是 effect 体内的同步 setState）。
+  useEffect(() => {
+    if (monthIsOutOfRange || monthIsUpcoming) return
+    const key = monthKey(year, month)
+    if (loadedMonths.has(key)) return
+
+    let cancelled = false
+    fetchMonthResults(year, month).then((results) => {
+      if (cancelled) return
+      setResultsByMonth((previous) => ({ ...previous, [key]: results }))
+      setLoadedMonths((previous) => new Set(previous).add(key))
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [year, month, monthIsOutOfRange, monthIsUpcoming, loadedMonths])
+
   /**
    * 三种状态在这里合流。顺序不能换：
    *   1. 早于开始使用 —— 那天用户还没开始用
    *   2. 晚于今天     —— 那天还没到（尤其不能渲染成链接：构建时只为今天之前
    *                      的每一天生成了页面，点进去是 404；线上实测过整个月
    *                      31 个链接里 19 个是死链）
-   *   3. 其余         —— 查服务端送来的达成情况
+   *   3. 其余         —— 查服务端算好的达成情况
    */
   const statusFor = (date: string): DayStatus => {
     if (!isInRange(date, startedAt)) return { calories: false, exercise: false, notStarted: true }
     if (isUpcoming(date, today)) return { calories: false, exercise: false, upcoming: true }
-    return dayResults[date] ?? { calories: false, exercise: false }
+    return (resultsByMonth[monthKey(year, month)] ?? {})[date] ?? {
+      calories: false,
+      exercise: false,
+    }
   }
 
   const statusByDate: Record<string, DayStatus> = {}
