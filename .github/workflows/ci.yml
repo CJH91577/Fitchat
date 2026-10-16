@@ -1,7 +1,7 @@
 name: CI
 
-# 每次推送与 PR 都跑一遍测试、lint 与生产构建。
-# 交付前的三条命令在这里自动执行，README 顶部的徽章就是它的结果。
+# 每次推送与 PR 都跑一遍测试、lint、生产构建与浏览器 E2E。
+# 交付前的四条命令在这里自动执行，README 顶部的徽章就是它的结果。
 
 on:
   push:
@@ -23,3 +23,7 @@ jobs:
       - run: npm test
       - run: npm run lint
       - run: npm run build
+
+      # 浏览器 E2E：起 standalone 服务 + 临时库，跑「登录 → 记录 → 首页可见」
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test

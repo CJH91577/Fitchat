@@ -28,15 +28,16 @@ Next.js 16（App Router，服务端渲染）· React 19 · TypeScript 5 · **SQL
 npm install
 npm run db:seed   # 首次：建库 + 迁移 + 播种演示数据（约 1800 条记录）
 npm run dev       # 开发服务器 http://localhost:3000
-npm test          # 353 个测试
+npm test          # 440 个单元/组件/页面测试
 npm run lint      # ESLint 检查
 npm run build     # 生产构建（standalone 产物）
 npm start         # 以生产模式启动
+npx playwright test   # 浏览器 E2E（先 npm run build；需要 playwright install chromium）
 ```
 
 **演示账号**：`demo@fitchat.local` / `fitchat-demo`（口令是公开的，见下方「为什么演示账号没有门槛」）。三个随部署附送的一次性邀请码写在 `lib/db/demo.ts`，各能注册一个账号。
 
-推送到 GitHub 后，CI 会自动执行 `test` / `lint` / `build`（见 `.github/workflows/ci.yml`）。
+推送到 GitHub 后，CI 会自动执行 `test` / `lint` / `build` / 浏览器 E2E（见 `.github/workflows/ci.yml`）。
 
 ## 部署
 
@@ -78,6 +79,7 @@ drizzle-orm/d1  ← 一个驱动，两种实现
 - **`tests/css-modules-contract.test.ts`** —— 源码引用样式表里不存在的类名时，CSS Modules 返回 `undefined`，React 会直接省略该 `class` 属性：构建、lint、渲染测试**全部通过**，但布局静默失效。日历页曾因 `styles.calendarArea` 缺失导致网格完全没撑满，而所有自动化检查都是绿的。这条测试把「源码用到的类」与「样式表里定义的类」之间的契约钉住。
 - **`lib/db/schema.test.ts`** —— 迁移 SQL 与 `schema.ts` 是两份独立的描述，漂移了不会有任何症状（构建通过、lint 通过、页面照常跑，直到某天查询报「no such column」）。这条测试把迁移应用到一个全新的库上，再逐表逐列与 Drizzle 的定义比对。
 - **`lib/db/migrate.test.ts`** —— 迁移是在什么条件下执行的。起因是一次真实事故：把 `users` 的资料列改成可空需要重建表，而重建期间 `DROP TABLE users` 按 `ON DELETE CASCADE` 把演示用户的 1431 条饮食记录连同运动、体重一起删了，用户那一行还在。原因是 `PRAGMA foreign_keys` 在事务里是空操作，而迁移器把每个迁移包在事务里执行。现在外键在跑迁移的连接上是关的，迁移之后再用 `foreign_key_check` 拦下孤儿行；这条测试复现了老库的形状，去掉修复就会转红。
+- **`e2e/demo-flow.spec.ts`**（Playwright）——唯一没有机器验证过的一步是「点登录按钮」：React 的 Server Action 协议没法手写请求（试过，回协议错误），组件级与 action 级测试都覆盖不到。这条 E2E 用真浏览器跑通「打开 → 一键进演示账号 → 记一条运动 → 首页看到它」，在 CI 里执行（`.github/workflows/ci.yml`）。
 
 ## 设计上的几个取舍
 

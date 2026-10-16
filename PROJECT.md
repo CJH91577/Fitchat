@@ -5,7 +5,7 @@
 
 - **在线演示**：<http://43.142.16.200:3000>（腾讯云 Docker；现在是登录制，见下）
 - **仓库**：`C:\Users\admin\Fitchat`（Windows 开发机）；生产在服务器 `/home/ubuntu/fitchat`
-- **规模**：62 个源文件 + 43 个测试文件（353 个测试）+ 2 个迁移 + 11 张表
+- **规模**：53 个测试文件（440 个单元/组件测试）+ 1 条 Playwright E2E + 3 个迁移 + 13 张表
 
 ---
 
@@ -23,7 +23,7 @@ npm run dev         # http://localhost:3000
 验证命令（**任何改动之后都必须四条全绿再提交**）：
 
 ```bash
-npm test            # 353 个测试
+npm test            # 440 个测试（单元 / 组件 / 页面 / action）
 npx tsc --noEmit    # 类型检查（Windows 上若 npx.ps1 被策略禁用，用 npm.cmd exec tsc -- --noEmit 或 node_modules\.bin\tsc.cmd）
 npm run lint        # ESLint，要求 0 warning
 npm run build       # 生产构建（standalone）
