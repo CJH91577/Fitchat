@@ -14,6 +14,8 @@ services:
     volumes:
       # 数据库文件放在宿主机上：docker compose up --build 重建容器时数据不会丢
       - ./data:/data
+      # 备份目录：scripts/backup.sh 在容器里把在线备份写到这里
+      - ./backups:/backups
     healthcheck:
       # 首页要查库，能返回 200 就说明「进程活着 + 数据库可读」两件事都成立
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]

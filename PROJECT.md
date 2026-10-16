@@ -199,5 +199,5 @@ sudo docker run --rm --user root -v /home/ubuntu/fitchat/data:/d -v <脚本>:/ap
 ## 十、当前状态与已知限制
 
 - **线上**：`http://43.142.16.200:3000`，容器 healthy，登录制；老库升级实测数据一条没丢。
-- **已知限制**：见 `README.md` 的「已知限制」与 `docs/superpowers/plans/demo-走查清单.md` 第四节（剩余待办：E2E、服务器凭据卫生；演示数据 90 天时限已由启动续播解决）。
+- **已知限制**：见 `README.md` 的「已知限制」与 `docs/superpowers/plans/demo-走查清单.md` 第四节（TASKS.md 的清单已全部完成；演示数据 90 天时限由启动续播解决）。
 - **待办**：见 `TASKS.md`。

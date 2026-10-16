@@ -16,6 +16,31 @@
 
 **验证**：`docker --version` 与 `docker compose version` 都有输出。
 
+## 一之补充、SSH 密钥登录（凭据卫生，务必做）
+
+服务器口令进过聊天记录、也建议轮换过——**换成密钥登录并关掉口令登录**。顺序不能反：先确认密钥能登，再关口令，否则会把自己锁在门外。
+
+```bash
+# 1) 本地（开发机）生成密钥（已有可跳过）
+ssh-keygen -t ed25519 -C "fitchat-server"
+
+# 2) 把公钥装到服务器（这一步还用的是口令登录）
+ssh-copy-id ubuntu@<服务器IP>
+
+# 3) 验证免密登录
+ssh -o BatchMode=yes ubuntu@<服务器IP> 'echo ok'      # 输出 ok 才算数
+
+# 4) 关掉口令登录
+sudo sed -i -E 's/^#?PasswordAuthentication\s+yes/PasswordAuthentication no/' /etc/ssh/sshd_config
+echo 'PasswordAuthentication no' | sudo tee -a /etc/ssh/sshd_config.d/99-fitchat.conf
+sudo systemctl reload ssh
+
+# 5) 验收
+sshd -T | grep -i passwordauthentication          # 应当全是 no
+```
+
+**注意**：腾讯云控制台网页里那个「登录」用的是另一套机制（VNC/镜像注入），不受 sshd 配置影响——即使误操作把自己锁在 SSH 外面，控制台网页登录仍然是退路。
+
 ## 二、把代码放上去并启动
 
 ```bash
@@ -139,14 +164,27 @@ docker compose up -d --build
 
 ## 六、备份
 
-SQLite 就是一个文件，备份 = 复制它。**但不要在服务运行时直接 `cp`**（WAL 模式下可能拿到不一致的快照），先停容器：
+备份用 `scripts/backup.sh`：容器里的 better-sqlite3 在线 backup（WAL 模式下仍然一致），**不需要停容器**——之前「先停容器再 cp」是给手动操作的安全下限，脚本走的是 SQLite 自己的备份 API。
+
+先手动跑一次确认能成：
 
 ```bash
 mkdir -p backups
-docker compose stop app
-cp data/fitchat.db "backups/fitchat-$(date +%F).db"
-docker compose start app
+./scripts/backup.sh
+# 验证当天那份能打开且完整：
+docker compose exec -T app node -e "const D=require('better-sqlite3');const db=new D('/backups/fitchat-$(date +%F).db',{readonly:true});console.log(db.pragma('integrity_check'));db.close()"
+# 应当输出 [ 'ok' ]
 ```
+
+然后装进 crontab 每日自动跑（保留最近 14 份）：
+
+```bash
+crontab -e
+# 加入（分钟避开整点，别和全球的整点任务挤在一起）：
+7 3 * * * /home/ubuntu/fitchat/scripts/backup.sh >> /home/ubuntu/fitchat/backups/backup.log 2>&1
+```
+
+`docker-compose.yml` 里已经挂了 `./backups:/backups`，备份落在宿主机 `backups/` 目录（在数据卷**外面**——`rm -rf data` 不会带走备份）。
 
 丢数据的代价目前不低：库里已经有真实写入（记录饮食、运动、体重、目标）。**升级前先备份**，尤其是带表重建的迁移。
 
