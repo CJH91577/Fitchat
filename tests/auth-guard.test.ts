@@ -114,12 +114,13 @@ describe('登录页：唯一公开的页面', () => {
   })
 })
 
-describe('会话 Cookie 只有一个出入口', () => {
+describe('请求头只有两个出入口', () => {
   // 页面测试靠替换 lib/auth/cookie 这一个模块来模拟登录态。若别处也直接调用
   // next/headers 的 cookies()，就绕过了这个替换点：页面会认为「没有 Cookie」，
   // 守卫于是把人踢到登录页——而更糟的结果是有人为了让测试变绿，把替换改成
-  // 「直接注入用户」，整条会话链路就没人测了。
-  it('只有 lib/auth/cookie.ts 直接引用 next/headers', () => {
+  // 「直接注入用户」，整条会话链路就没人测了。lib/auth/ip.ts 同理：客户端 IP
+  // 只在限流里用，读 x-forwarded-for 的代码也只该有这一个出入口。
+  it('只有 lib/auth/cookie.ts 与 lib/auth/ip.ts 直接引用 next/headers', () => {
     const files = [...walk(appDir), ...walk(join(root, 'lib'))].filter(
       (file) => file.endsWith('.ts') || file.endsWith('.tsx'),
     )
@@ -127,7 +128,7 @@ describe('会话 Cookie 只有一个出入口', () => {
       .filter((file) => /from 'next\/headers'/.test(readCode(file)))
       .map((file) => repoPath(root, file))
 
-    expect(importers).toEqual(['lib/auth/cookie.ts'])
+    expect(importers).toEqual(['lib/auth/cookie.ts', 'lib/auth/ip.ts'])
   })
 })
 

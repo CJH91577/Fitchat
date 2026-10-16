@@ -4,6 +4,12 @@ import type { Db } from '../db'
 import { credentialsByEmail } from '../db/queries'
 import { registerWithInvite } from '../db/writes'
 import { MIN_PASSWORD_LENGTH, hashPassword, verifyPassword } from './password'
+import {
+  RATE_LIMITED_MESSAGE,
+  clearFailures,
+  isRateLimited,
+  recordFailure,
+} from './rate-limit'
 import { createSession } from './session'
 
 /**
@@ -52,13 +58,36 @@ const TIMING_EQUALIZER_HASH =
 /** 登录失败一律同一句话：不区分「邮箱没注册」与「口令不对」，否则等于确认了账号存在 */
 const SIGN_IN_FAILED = '邮箱或口令不正确。'
 
-export async function signIn(db: Db, email: string, password: string): Promise<AuthResult> {
+/**
+ * 登录。rateLimitKeys 是调用方（Server Action）算好的限流键（`ip:…` /
+ * `email:…`，见 lib/auth/rate-limit.ts）；不传就是不限流（直接调用方
+ * 与既有测试都不受影响）。
+ *
+ * 限流检查在最前面：到上限时连 scrypt 都不跑，直接同一句「稍后再试」。
+ * now 参数只为测试注入窗口边界，正常调用不需要传。
+ */
+export async function signIn(
+  db: Db,
+  email: string,
+  password: string,
+  rateLimitKeys: string[] = [],
+  now: number = Date.now(),
+): Promise<AuthResult> {
+  for (const key of rateLimitKeys) {
+    if (await isRateLimited(db, key, now)) return fail(RATE_LIMITED_MESSAGE)
+  }
+
   const credentials = await credentialsByEmail(db, normalizeEmail(email))
 
   // passwordHash 为 null（演示账号最初就是这种）时，verifyPassword 返回 false——
   // 把「没有口令」当成「不需要口令」，等于给这些账号留一道无密码后门
   const matches = await verifyPassword(password, credentials?.passwordHash ?? TIMING_EQUALIZER_HASH)
-  if (credentials === null || !matches) return fail(SIGN_IN_FAILED)
+  if (credentials === null || !matches) {
+    for (const key of rateLimitKeys) await recordFailure(db, key, now)
+    return fail(SIGN_IN_FAILED)
+  }
+
+  for (const key of rateLimitKeys) await clearFailures(db, key)
 
   const session = await createSession(db, credentials.userId)
   return { ok: true, token: session.token, expiresAt: session.expiresAt }
@@ -73,7 +102,16 @@ const REGISTER_FAILED: Record<'code-not-found' | 'code-used' | 'email-taken', st
   'email-taken': '这个邮箱已经注册过了，直接登录即可。',
 }
 
-export async function register(db: Db, input: RegisterInput): Promise<AuthResult> {
+/**
+ * 注册。rateLimitKeys 与 signIn 同理；注册只对「实质性失败」（码不对、
+ * 码已用、邮箱已注册）计数——格式错误是手滑，不该把人锁在门外。
+ */
+export async function register(
+  db: Db,
+  input: RegisterInput,
+  rateLimitKeys: string[] = [],
+  now: number = Date.now(),
+): Promise<AuthResult> {
   const email = normalizeEmail(input.email)
   const code = normalizeInviteCode(input.code)
 
@@ -83,10 +121,13 @@ export async function register(db: Db, input: RegisterInput): Promise<AuthResult
   }
   if (code === '') return fail('请填写邀请码。')
 
+  for (const key of rateLimitKeys) {
+    if (await isRateLimited(db, key, now)) return fail(RATE_LIMITED_MESSAGE)
+  }
+
   // 先算散列：事务里不该等 scrypt（见 lib/db/writes.ts 的说明）
   const passwordHash = await hashPassword(input.password)
 
-  const now = new Date()
   const userId = randomUUID()
   const result = await registerWithInvite(db, code, {
     userId,
@@ -95,11 +136,16 @@ export async function register(db: Db, input: RegisterInput): Promise<AuthResult
     // 新用户的「开始使用日期」就是注册当天：日历与趋势都从这天往后开放
     startedAt: today(),
     timezone: 'Asia/Shanghai',
-    now,
+    now: new Date(now),
   })
 
-  if (!result.ok) return fail(REGISTER_FAILED[result.reason])
+  if (!result.ok) {
+    for (const key of rateLimitKeys) await recordFailure(db, key, now)
+    return fail(REGISTER_FAILED[result.reason])
+  }
 
-  const session = await createSession(db, userId, now)
+  for (const key of rateLimitKeys) await clearFailures(db, key)
+
+  const session = await createSession(db, userId, new Date(now))
   return { ok: true, token: session.token, expiresAt: session.expiresAt }
 }

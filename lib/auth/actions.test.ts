@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { eq } from 'drizzle-orm'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { DEMO_PASSWORD, DEMO_USER_EMAIL, DEMO_USER_ID } from '../db/demo'
 import { getDb } from '../db/runtime'
 import { inviteCodeFor } from '../db/queries'
@@ -32,6 +32,11 @@ const cookie = vi.hoisted(() => ({
 }))
 
 vi.mock('@/lib/auth/cookie', () => cookie)
+
+// 限流键里的 IP 来自 lib/auth/ip.ts；每个用例可以换一个自己的地址，
+// 避免「同 IP 失败次数」在用例之间累积
+const ip = vi.hoisted(() => ({ value: '1.2.3.4' }))
+vi.mock('@/lib/auth/ip', () => ({ clientIp: vi.fn(async () => ip.value) }))
 
 vi.mock('next/navigation', async () => {
   const { redirectMock } = await import('@/tests/next-navigation-mock')
@@ -66,6 +71,12 @@ async function sessionRowForWrittenToken(index = -1) {
 }
 
 const db = () => getDb()
+
+// 限流按 IP 计数，而这里所有用例共享一份种子库——每个用例开始前把 IP
+// 恢复成默认值，避免上一个用例留下的失败次数影响下一个
+beforeEach(() => {
+  ip.value = '1.2.3.4'
+})
 
 describe('登录', () => {
   it('口令正确：写 Cookie、建会话、跳到首页', async () => {
@@ -115,6 +126,27 @@ describe('登录', () => {
 
     expect(await db().select().from(sessions).where(eq(sessions.id, expired)).get()).toBeUndefined()
     expect(await sessionRowForWrittenToken()).toMatchObject({ userId: DEMO_USER_ID })
+  })
+
+  it('同一来源失败 10 次后，第 11 次连正确口令也被拒', async () => {
+    ip.value = '10.0.0.99'
+    cookie.writeSessionCookie.mockClear()
+
+    for (let i = 0; i < 10; i++) {
+      const state = await signInAction(
+        { error: null },
+        formData({ email: 'locked@fitchat.local', password: 'wrong-password' }),
+      )
+      expect(state, `第 ${i + 1} 次`).toEqual({ error: '邮箱或口令不正确。' })
+    }
+
+    // 到上限后，就算口令对了也不放行——否则这个限制形同虚设
+    const locked = await signInAction(
+      { error: null },
+      formData({ email: 'locked@fitchat.local', password: 'correct-password' }),
+    )
+    expect(locked).toEqual({ error: '尝试次数过多，请稍后再试。' })
+    expect(cookie.writeSessionCookie).not.toHaveBeenCalled()
   })
 })
 

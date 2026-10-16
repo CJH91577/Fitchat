@@ -15,6 +15,13 @@
       "when": 1760100000000,
       "tag": "0001_users_profile_optional",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1760200000000,
+      "tag": "0002_login_attempts",
+      "breakpoints": true
     }
   ]
 }

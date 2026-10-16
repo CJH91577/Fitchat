@@ -4,9 +4,11 @@ import { redirect } from 'next/navigation'
 import { DEMO_USER_ID } from '../db/demo'
 import { userById } from '../db/queries'
 import { getDb } from '../db/runtime'
-import { register, signIn } from './accounts'
+import { normalizeEmail, register, signIn } from './accounts'
 import { clearSessionCookie, readSessionToken, writeSessionCookie } from './cookie'
 import type { FormState } from './form-state'
+import { clientIp } from './ip'
+import { attemptKey } from './rate-limit'
 import { createSession, deleteExpiredSessions, deleteSession } from './session'
 
 /**
@@ -25,11 +27,11 @@ export async function signInAction(_prev: FormState, formData: FormData): Promis
   // 顺手清掉过期会话：登录是天然的、频率有界的触发点（见 lib/auth/session.ts）
   await deleteExpiredSessions(db)
 
-  const result = await signIn(
-    db,
-    String(formData.get('email') ?? ''),
-    String(formData.get('password') ?? ''),
-  )
+  const email = String(formData.get('email') ?? '')
+  const result = await signIn(db, email, String(formData.get('password') ?? ''), [
+    attemptKey('email', normalizeEmail(email)),
+    attemptKey('ip', await clientIp()),
+  ])
   if (!result.ok) return { error: result.message }
 
   await writeSessionCookie(result.token, result.expiresAt)
@@ -39,11 +41,17 @@ export async function signInAction(_prev: FormState, formData: FormData): Promis
 export async function registerAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const db = getDb()
 
-  const result = await register(db, {
-    code: String(formData.get('code') ?? ''),
-    email: String(formData.get('email') ?? ''),
-    password: String(formData.get('password') ?? ''),
-  })
+  // 注册的限流键只有 IP：邀请码是「谁在试」的问题；邮箱是受害者自己的，
+  // 拿它计数会让攻击者顺手把受害者的邮箱锁在门外
+  const result = await register(
+    db,
+    {
+      code: String(formData.get('code') ?? ''),
+      email: String(formData.get('email') ?? ''),
+      password: String(formData.get('password') ?? ''),
+    },
+    [attemptKey('ip', await clientIp())],
+  )
   if (!result.ok) return { error: result.message }
 
   await writeSessionCookie(result.token, result.expiresAt)

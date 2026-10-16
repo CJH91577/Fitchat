@@ -14,6 +14,7 @@ import { seedDatabase } from '../db/seed'
 import { createInviteCodes } from '../db/writes'
 import { normalizeEmail, normalizeInviteCode, register, signIn } from './accounts'
 import { hashPassword } from './password'
+import { ATTEMPT_WINDOW_MS, attemptKey, isRateLimited } from './rate-limit'
 import { userBySessionToken } from './session'
 
 /**
@@ -222,6 +223,87 @@ describe('用邀请码注册', () => {
 
   it('演示账号始终在库里（种子数据与认证不冲突）', async () => {
     expect((await userById(db, DEMO_USER_ID))?.email).toBe(DEMO_USER_EMAIL)
+  })
+})
+
+describe('失败频率限制', () => {
+  // 每个用例用自己的键与固定的 now：键之间互不影响，窗口边界可以精确控制
+  const NOW = 1_700_000_000_000
+
+  it('同一键失败 10 次后，第 11 次连正确口令也被拒，直到窗口结束', async () => {
+    const key = attemptKey('ip', '9.9.9.9')
+
+    for (let i = 0; i < 10; i++) {
+      const result = await signIn(db, 'victim@fitchat.local', 'wrong-password', [key], NOW)
+      expect(result, `第 ${i + 1} 次`).toEqual({ ok: false, message: '邮箱或口令不正确。' })
+    }
+
+    // 到上限后，就算口令对了也不放行——否则这个限制形同虚设
+    const locked = await signIn(db, DEMO_USER_EMAIL, DEMO_PASSWORD, [key], NOW)
+    expect(locked).toEqual({ ok: false, message: '尝试次数过多，请稍后再试。' })
+
+    // 窗口一过，恢复
+    const after = await signIn(db, DEMO_USER_EMAIL, DEMO_PASSWORD, [key], NOW + ATTEMPT_WINDOW_MS + 1)
+    expect(after.ok).toBe(true)
+  })
+
+  it('登录成功后清零：成功一次不该累积成下一次的锁定', async () => {
+    const key = attemptKey('ip', '8.8.8.8')
+
+    for (let i = 0; i < 5; i++) {
+      await signIn(db, 'victim@fitchat.local', 'wrong-password', [key], NOW)
+    }
+    expect(await isRateLimited(db, key, NOW)).toBe(false)
+
+    expect((await signIn(db, DEMO_USER_EMAIL, DEMO_PASSWORD, [key], NOW)).ok).toBe(true)
+    expect(await isRateLimited(db, key, NOW)).toBe(false)
+  })
+
+  it('邮箱键与 IP 键各自独立计数', async () => {
+    const ipKey = attemptKey('ip', '7.7.7.7')
+    const emailKey = attemptKey('email', 'someone-else@fitchat.local')
+
+    for (let i = 0; i < 10; i++) {
+      await signIn(db, 'victim@fitchat.local', 'wrong-password', [ipKey], NOW)
+    }
+    expect(await isRateLimited(db, ipKey, NOW)).toBe(true)
+
+    // IP 键到上限，不影响另一个键
+    expect((await signIn(db, DEMO_USER_EMAIL, DEMO_PASSWORD, [emailKey], NOW)).ok).toBe(true)
+  })
+
+  it('注册失败也计数：同一 IP 猜码 10 次后，第 11 次连正确的码也被拒', async () => {
+    const key = attemptKey('ip', '6.6.6.6')
+    const realCode = await freshCode()
+
+    for (let i = 0; i < 10; i++) {
+      const result = await register(
+        db,
+        { code: `WRONG-CODE-${i}`, email: `guesser-${i}@fitchat.local`, password: 'a-good-password' },
+        [key],
+        NOW,
+      )
+      expect(result.ok).toBe(false)
+    }
+
+    const locked = await register(
+      db,
+      { code: realCode, email: 'locked-reg@fitchat.local', password: 'a-good-password' },
+      [key],
+      NOW,
+    )
+    expect(locked).toEqual({ ok: false, message: '尝试次数过多，请稍后再试。' })
+    // 被限流挡住的那次没有消耗邀请码
+    expect((await inviteCodeFor(db, realCode))?.usedByUserId).toBeNull()
+  })
+
+  it('注册的格式错误（手滑）不计入失败次数', async () => {
+    const key = attemptKey('ip', '5.5.5.5')
+
+    for (let i = 0; i < 10; i++) {
+      await register(db, { code: '', email: 'not-an-email', password: 'short' }, [key], NOW)
+    }
+    expect(await isRateLimited(db, key, NOW)).toBe(false)
   })
 })
 

@@ -69,6 +69,20 @@ export const inviteCodes = sqliteTable('invite_codes', {
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
 })
 
+/**
+ * 登录/注册失败计数（见 lib/auth/rate-limit.ts）。
+ *
+ * 计数键是 `ip:<地址>` 或 `email:<邮箱>`——不是用户 id：限流针对的是
+ * 「谁在试」，没注册过的邮箱与没有账号的 IP 也要能计数。键就是主键，
+ * 每个键一行；窗口过期后这一行被重置复用，表不会无界增长。
+ */
+export const loginAttempts = sqliteTable('login_attempts', {
+  key: text('key').primaryKey(),
+  /** 窗口起点：count 从这一刻起算，超过窗口后整行重置 */
+  windowStartedAt: integer('window_started_at', { mode: 'timestamp_ms' }).notNull(),
+  count: integer('count').notNull(),
+})
+
 // ---------------------------------------------------------------- 目标
 
 /**
