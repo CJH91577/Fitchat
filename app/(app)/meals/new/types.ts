@@ -30,3 +30,11 @@ export const EMPTY_SAVE_STATE: SaveState = { error: null }
 export type DeleteState = { error: string | null; removedAt: number }
 
 export const EMPTY_DELETE_STATE: DeleteState = { error: null, removedAt: 0 }
+
+/**
+ * 编辑成功与保存一样直接跳回首页（那里正是「今天吃了什么」的地方），
+ * 所以这个状态只承载失败。
+ */
+export type UpdateState = { error: string | null }
+
+export const EMPTY_UPDATE_STATE: UpdateState = { error: null }

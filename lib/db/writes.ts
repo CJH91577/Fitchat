@@ -285,7 +285,115 @@ export async function deleteExerciseEntry(
 }
 
 /**
- * 记下今天的体重。
+ * 改一条饮食记录的克数（与随之重算的营养快照）。
+ *
+ * 归属检查写在 WHERE 里（与删除同一个规矩）：改别人的记录时一行都不会动，
+ * 返回 false 让界面说「这条记录不在了」而不是假装成功。
+ * 营养快照由调用方按食物库与新的克数算好传进来——写这一层只负责落库，
+ * 「数字由谁算」是 action 层的规矩（见 meals/new/actions.ts）。
+ */
+export async function updateFoodEntry(
+  db: Db,
+  userId: string,
+  entryId: string,
+  input: {
+    foodId: string
+    name: string
+    grams: number
+    source: FoodSource
+    calories: number
+    protein: number
+    carbs: number
+    fat: number
+  },
+): Promise<boolean> {
+  return db.transaction(async (tx) => {
+    const existing = await tx
+      .select({ id: foodEntries.id })
+      .from(foodEntries)
+      .where(and(eq(foodEntries.id, entryId), eq(foodEntries.userId, userId)))
+      .get()
+    if (!existing) return false
+
+    await tx
+      .update(foodEntries)
+      .set({
+        foodId: input.foodId,
+        name: input.name,
+        grams: input.grams,
+        source: input.source,
+        calories: input.calories,
+        protein: input.protein,
+        carbs: input.carbs,
+        fat: input.fat,
+      })
+      .where(and(eq(foodEntries.id, entryId), eq(foodEntries.userId, userId)))
+      .run()
+    return true
+  })
+}
+
+/**
+ * 改一条运动记录：时长（有氧）或逐组重量次数（力量）与重新估算的消耗。
+ *
+ * 组数整体替换、set_index 从 1 重新连续编号——「编辑时删掉中间一组」不该
+ * 在组号里留下空洞。主记录与组数在同一个事务里，要么全改要么全不改。
+ */
+export async function updateExerciseEntry(
+  db: Db,
+  userId: string,
+  entryId: string,
+  entry: {
+    kind: 'cardio' | 'strength'
+    name: string
+    minutes: number | null
+    caloriesBurned: number
+    sets: { reps: number; weightKg: number }[]
+  },
+): Promise<boolean> {
+  return db.transaction(async (tx) => {
+    const existing = await tx
+      .select({ id: exerciseEntries.id })
+      .from(exerciseEntries)
+      .where(and(eq(exerciseEntries.id, entryId), eq(exerciseEntries.userId, userId)))
+      .get()
+    if (!existing) return false
+
+    await tx
+      .update(exerciseEntries)
+      .set({
+        kind: entry.kind,
+        name: entry.name,
+        minutes: entry.minutes,
+        caloriesBurned: entry.caloriesBurned,
+      })
+      .where(and(eq(exerciseEntries.id, entryId), eq(exerciseEntries.userId, userId)))
+      .run()
+
+    await tx.delete(strengthSets).where(eq(strengthSets.entryId, entryId)).run()
+
+    if (entry.sets.length > 0) {
+      await tx
+        .insert(strengthSets)
+        .values(
+          entry.sets.map((set, index) => ({
+            id: randomUUID(),
+            entryId,
+            // 组序号从 1 开始且连续：顺序不该由数据库返回的顺序隐式决定
+            setIndex: index + 1,
+            reps: set.reps,
+            weightKg: set.weightKg,
+          })),
+        )
+        .run()
+    }
+
+    return true
+  })
+}
+
+/**
+ * 记下某一天的体重。
  *
  * (user_id, date) 就是主键，所以一天一条——重复记录是**改**而不是追加。
  * 这一点很重要：一天称两次不该变成两条记录，否则趋势页的日均值会被同一天

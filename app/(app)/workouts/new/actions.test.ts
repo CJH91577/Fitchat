@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { revalidatePath } from 'next/cache'
 import { estimateCardioCalories, estimateStrengthCalories } from '@/lib/data/workout'
 import { today } from '@/lib/data/today'
 import { DEMO_USER_ID } from '@/lib/db/demo'
@@ -6,11 +7,11 @@ import { dayLogFor, userById } from '@/lib/db/queries'
 import { getDb } from '@/lib/db/runtime'
 import { exerciseEntries, strengthSets, users } from '@/lib/db/schema'
 import { addExerciseEntry } from '@/lib/db/writes'
-import { deleteWorkoutAction, saveWorkoutAction } from './actions'
+import { deleteWorkoutAction, saveWorkoutAction, updateWorkoutAction } from './actions'
 import { redirectTarget } from '@/tests/next-navigation-mock'
 import { setupSeededDatabase } from '@/tests/seeded-db'
 
-vi.mock('next/cache', () => ({ revalidatePath: () => {} }))
+vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 vi.mock('next/navigation', async () => {
   const { redirectMock } = await import('@/tests/next-navigation-mock')
   return { redirect: redirectMock }
@@ -189,5 +190,152 @@ describe('删除一条运动记录', () => {
     expect(after.exercises.some((exercise) => exercise.id === target!.id)).toBe(false)
     // 组数随主记录一起消失（外键 on delete cascade）
     expect((await db().select().from(strengthSets).all()).some((row) => row.entryId === target!.id)).toBe(false)
+  })
+})
+
+describe('修改一条运动记录', () => {
+  it('力量：组数增删整体替换，组号从 1 重新连续，消耗由服务端重算', async () => {
+    try {
+      await saveWorkoutAction(
+        { error: null },
+        formData({
+          kind: 'strength',
+          name: '待修改的卧推',
+          sets: JSON.stringify([
+            { reps: 8, weightKg: 60 },
+            { reps: 8, weightKg: 62.5 },
+            { reps: 6, weightKg: 65 },
+          ]),
+        }),
+      )
+    } catch {
+      // redirect 是正常的成功路径
+    }
+
+    const saved = (await demoDay()).exercises.find((exercise) => exercise.name === '待修改的卧推')
+    expect(saved).toBeTruthy()
+    expect(saved?.sets).toHaveLength(3)
+
+    vi.mocked(revalidatePath).mockClear()
+    try {
+      await updateWorkoutAction(
+        { error: null },
+        formData({
+          entryId: saved!.id,
+          kind: 'strength',
+          name: '待修改的卧推',
+          sets: JSON.stringify([
+            { reps: 10, weightKg: 70 },
+            { reps: 10, weightKg: 70 },
+          ]),
+        }),
+      )
+      throw new Error('本该跳到首页')
+    } catch (error) {
+      expect(redirectTarget(error)).toBe('/')
+    }
+
+    const updated = (await demoDay()).exercises.find((exercise) => exercise.id === saved!.id)
+    expect(updated?.sets).toEqual([
+      { reps: 10, weightKg: 70 },
+      { reps: 10, weightKg: 70 },
+    ])
+    expect(updated?.caloriesBurned).toBe(estimateStrengthCalories(2))
+
+    // 组数整组替换：没有残留的第三组，组号连续 1、2
+    const rows = await db().select().from(strengthSets).all()
+    const mine = rows.filter((row) => row.entryId === saved!.id)
+    expect(mine.map((row) => row.setIndex).sort()).toEqual([1, 2])
+    expect(mine.map((row) => row.reps).sort()).toEqual([10, 10])
+
+    expect(vi.mocked(revalidatePath)).toHaveBeenCalledWith('/', 'layout')
+  })
+
+  it('有氧：改时长，消耗按新时长重算', async () => {
+    try {
+      await saveWorkoutAction(
+        { error: null },
+        formData({ kind: 'cardio', name: '待修改的慢跑', minutes: '30', intensity: 'moderate' }),
+      )
+    } catch {
+      // redirect 是正常的成功路径
+    }
+
+    const saved = (await demoDay()).exercises.find((exercise) => exercise.name === '待修改的慢跑')
+    expect(saved?.minutes).toBe(30)
+
+    try {
+      await updateWorkoutAction(
+        { error: null },
+        formData({ entryId: saved!.id, kind: 'cardio', name: '待修改的慢跑', minutes: '45', intensity: 'hard' }),
+      )
+      throw new Error('本该跳到首页')
+    } catch (error) {
+      expect(redirectTarget(error)).toBe('/')
+    }
+
+    const updated = (await demoDay()).exercises.find((exercise) => exercise.id === saved!.id)
+    expect(updated?.minutes).toBe(45)
+    // 名字不在估算表里 → 默认每分钟 8 千卡 × 45 × 1.25
+    expect(updated?.caloriesBurned).toBe(estimateCardioCalories('待修改的慢跑', 45, 'hard'))
+  })
+
+  it('只能改自己的：别人的记录改不动，也不报成功', async () => {
+    const now = new Date()
+    await db()
+      .insert(users)
+      .values({
+        id: 'edit-rival',
+        email: 'edit-rival@fitchat.local',
+        passwordHash: null,
+        heightCm: null,
+        age: null,
+        sex: null,
+        startedAt: '2026-01-01',
+        timezone: 'Asia/Shanghai',
+        createdAt: now,
+      })
+      .run()
+    await addExerciseEntry(
+      db(),
+      'edit-rival',
+      today(),
+      { kind: 'strength', name: '别人的硬拉', minutes: null, caloriesBurned: 200, sets: [] },
+      now,
+    )
+    const theirs = (await db().select().from(exerciseEntries).all()).find(
+      (row) => row.userId === 'edit-rival',
+    )
+    expect(theirs).toBeTruthy()
+
+    const state = await updateWorkoutAction(
+      { error: null },
+      formData({
+        entryId: theirs!.id,
+        kind: 'strength',
+        name: '别人的硬拉',
+        sets: JSON.stringify([{ reps: 5, weightKg: 100 }]),
+      }),
+    )
+    expect(state.error).toMatch(/已经不在了/)
+
+    const after = (await db().select().from(exerciseEntries).all()).find(
+      (row) => row.id === theirs!.id,
+    )
+    expect(after?.name).toBe('别人的硬拉')
+    expect(after?.caloriesBurned).toBe(200)
+  })
+
+  it('不指定 id、字段非法时明确拒绝', async () => {
+    const noId = await updateWorkoutAction({ error: null }, formData({}))
+    expect(noId.error).toMatch(/没有指定/)
+
+    const saved = (await demoDay()).exercises[0]
+    expect(saved?.id).toBeTruthy()
+    const bad = await updateWorkoutAction(
+      { error: null },
+      formData({ entryId: saved!.id, kind: 'strength', name: '', sets: '[]' }),
+    )
+    expect(bad.error).not.toBeNull()
   })
 })

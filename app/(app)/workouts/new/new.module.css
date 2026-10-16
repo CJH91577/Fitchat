@@ -172,6 +172,18 @@
   cursor: pointer;
 }
 
+/* 编辑按钮：把这条预填回表单，改完保存即更新 */
+.edit {
+  padding: 6px 10px;
+  border: 1px solid var(--border-hairline);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
 .secondaryButton {
   padding: 11px;
   border: 1px dashed var(--axis);

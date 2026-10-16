@@ -5,8 +5,13 @@ import { useActionState, useEffect, useMemo, useState } from 'react'
 import AiBadge from '@/components/AiBadge'
 import { type FoodOption, nutritionFor, parseMealSentence } from '@/lib/data/meal-parser'
 import { MEAL_SLOT_LABEL, type MealSlot } from '@/lib/data/types'
-import { deleteMealEntryAction, saveMealAction } from './actions'
-import { EMPTY_DELETE_STATE, EMPTY_SAVE_STATE, type TodayEntry } from './types'
+import { deleteMealEntryAction, saveMealAction, updateMealEntryAction } from './actions'
+import {
+  EMPTY_DELETE_STATE,
+  EMPTY_SAVE_STATE,
+  EMPTY_UPDATE_STATE,
+  type TodayEntry,
+} from './types'
 import styles from './new.module.css'
 
 const SLOTS: MealSlot[] = ['breakfast', 'lunch', 'dinner', 'snack']
@@ -45,11 +50,38 @@ export default function MealForm({
     deleteMealEntryAction,
     EMPTY_DELETE_STATE,
   )
+  const [updateState, updateEntry, updating] = useActionState(
+    updateMealEntryAction,
+    EMPTY_UPDATE_STATE,
+  )
+
+  // 正在编辑的那条记录；null = 表单在「新记一餐」模式
+  const [editingId, setEditingId] = useState<string | null>(null)
 
   // 删掉一条之后让服务端重新渲染：列表由服务端查询得出，不在浏览器里自己猜一份
   useEffect(() => {
     if (deleteState.removedAt > 0) router.refresh()
   }, [deleteState.removedAt, router])
+
+  // 编辑保存成功后直接跳回首页（与保存同一路径），所以这里不需要
+  // 在 effect 里重置任何状态——组件在跳转后自然卸载。
+
+  /** 把一条已保存的记录预填进表单：改成多少克，由「确认条目」里的克数决定 */
+  function startEdit(entry: TodayEntry) {
+    const food = foods.find((candidate) => candidate.name === entry.name)
+    setSlot(entry.slot)
+    if (!food) {
+      setEditingId(null)
+      setDrafts([])
+      setNote('这条记录的食物已经不在食物库里，没法改了。')
+      return
+    }
+    setDrafts([
+      { key: `edit-${entry.id}`, foodId: food.id, name: food.name, grams: entry.grams },
+    ])
+    setEditingId(entry.id)
+    setNote(null)
+  }
 
   const byId = useMemo(() => new Map(foods.map((food) => [food.id, food])), [foods])
 
@@ -157,18 +189,32 @@ export default function MealForm({
       {note !== null && <p className={styles.error}>{note}</p>}
 
       {drafts.length > 0 && (
-        <form action={save} className={styles.drafts}>
-          <h2 className={styles.parsedTitle}>确认这些条目</h2>
+        <form action={editingId !== null ? updateEntry : save} className={styles.drafts}>
+          <h2 className={styles.parsedTitle}>
+            {editingId !== null ? '修改这条记录' : '确认这些条目'}
+          </h2>
           <p className={styles.parsedHint}>
             份量是按常见说法估的（「一个鸡蛋」≈ 50 克），可以直接改成实际克数。
           </p>
 
-          <input type="hidden" name="slot" value={slot} />
-          <input
-            type="hidden"
-            name="items"
-            value={JSON.stringify(drafts.map((draft) => ({ foodId: draft.foodId, grams: draft.grams })))}
-          />
+          {editingId !== null ? (
+            <>
+              <input type="hidden" name="entryId" value={editingId} />
+              <input type="hidden" name="foodId" value={drafts[0]?.foodId ?? ''} />
+              <input type="hidden" name="grams" value={drafts[0]?.grams ?? 0} />
+            </>
+          ) : (
+            <>
+              <input type="hidden" name="slot" value={slot} />
+              <input
+                type="hidden"
+                name="items"
+                value={JSON.stringify(
+                  drafts.map((draft) => ({ foodId: draft.foodId, grams: draft.grams })),
+                )}
+              />
+            </>
+          )}
 
           <ul className={styles.list}>
             {drafts.map((draft, index) => {
@@ -212,15 +258,42 @@ export default function MealForm({
             合计 <span className="num-tabular">{totalCalories}</span> 千卡
           </p>
 
-          {saveState.error !== null && <p className={styles.error}>{saveState.error}</p>}
+          {saveState.error !== null && editingId === null && (
+            <p className={styles.error}>{saveState.error}</p>
+          )}
+          {updateState.error !== null && editingId !== null && (
+            <p className={styles.error}>{updateState.error}</p>
+          )}
 
           <button
             type="submit"
             className={styles.primaryButton}
-            disabled={saving || drafts.length === 0 || drafts.length > MAX_ITEMS}
+            disabled={
+              (editingId !== null ? updating : saving) ||
+              drafts.length === 0 ||
+              drafts.length > MAX_ITEMS
+            }
           >
-            {saving ? '正在保存…' : `保存到${MEAL_SLOT_LABEL[slot]}`}
+            {editingId !== null
+              ? updating
+                ? '正在保存…'
+                : '保存修改'
+              : saving
+                ? '正在保存…'
+                : `保存到${MEAL_SLOT_LABEL[slot]}`}
           </button>
+          {editingId !== null && (
+            <button
+              type="button"
+              className={styles.secondaryButton}
+              onClick={() => {
+                setEditingId(null)
+                setDrafts([])
+              }}
+            >
+              取消修改
+            </button>
+          )}
         </form>
       )}
 
@@ -242,6 +315,14 @@ export default function MealForm({
                 <span className={`${styles.rowMeta} num-tabular`}>
                   {entry.grams} 克 · {entry.calories} 千卡
                 </span>
+                <button
+                  type="button"
+                  className={styles.edit}
+                  aria-label={`编辑${entry.name}`}
+                  onClick={() => startEdit(entry)}
+                >
+                  编辑
+                </button>
                 {/* 删除是独立的一次提交，所以它自己一个表单：
                     表单不能嵌套，而保存那一次提交的是待确认列表 */}
                 <form action={removeEntry}>

@@ -11,8 +11,8 @@ import {
   estimateStrengthCalories,
 } from '@/lib/data/workout'
 import { getDb } from '@/lib/db/runtime'
-import { addExerciseEntry, deleteExerciseEntry } from '@/lib/db/writes'
-import type { DeleteState, SaveState } from './types'
+import { addExerciseEntry, deleteExerciseEntry, updateExerciseEntry } from '@/lib/db/writes'
+import type { DeleteState, SaveState, UpdateState } from './types'
 
 /**
  * 记录运动的写入路径。
@@ -56,10 +56,20 @@ function cleanName(value: string): string | null {
   return name
 }
 
-export async function saveWorkoutAction(_prev: SaveState, formData: FormData): Promise<SaveState> {
-  const db = getDb()
-  const user = await requireUser(db)
+type WorkoutInput = {
+  kind: 'cardio' | 'strength'
+  name: string
+  minutes: number | null
+  caloriesBurned: number
+  sets: SubmittedSet[]
+}
 
+/**
+ * 从表单读出一次「实际完成了什么」：保存与编辑共用，两个动作的校验
+ * 与消耗口径因此不可能漂移。消耗量在这里算，不在浏览器里算——
+ * 客户端只报「什么动作、多久、几组」。
+ */
+function readWorkout(formData: FormData): { error: string } | { entry: WorkoutInput } {
   const kind = String(formData.get('kind') ?? '')
   const name = cleanName(String(formData.get('name') ?? ''))
   if (name === null) return { error: '请填写动作名称（20 个字以内）。' }
@@ -72,39 +82,43 @@ export async function saveWorkoutAction(_prev: SaveState, formData: FormData): P
     }
     if (!(intensity in INTENSITY_LABEL)) return { error: '请选择强度。' }
 
-    await addExerciseEntry(
-      db,
-      user.id,
-      today(),
-      {
+    return {
+      entry: {
         kind: 'cardio',
         name,
         minutes: Math.round(minutes),
         caloriesBurned: estimateCardioCalories(name, Math.round(minutes), intensity),
         sets: [],
       },
-      new Date(),
-    )
-  } else if (kind === 'strength') {
+    }
+  }
+
+  if (kind === 'strength') {
     const sets = readSets(String(formData.get('sets') ?? ''))
     if (sets === null) return { error: '组数不对：重量填 0–500 公斤，次数填 1–100。' }
 
-    await addExerciseEntry(
-      db,
-      user.id,
-      today(),
-      {
+    return {
+      entry: {
         kind: 'strength',
         name,
         minutes: null,
         caloriesBurned: estimateStrengthCalories(sets.length),
         sets,
       },
-      new Date(),
-    )
-  } else {
-    return { error: '请选择有氧或力量。' }
+    }
   }
+
+  return { error: '请选择有氧或力量。' }
+}
+
+export async function saveWorkoutAction(_prev: SaveState, formData: FormData): Promise<SaveState> {
+  const db = getDb()
+  const user = await requireUser(db)
+
+  const read = readWorkout(formData)
+  if ('error' in read) return { error: read.error }
+
+  await addExerciseEntry(db, user.id, today(), read.entry, new Date())
 
   // 首页、某日详情、日历都读同一份数据，写完让缓存作废再回首页
   revalidatePath('/', 'layout')
@@ -127,4 +141,31 @@ export async function deleteWorkoutAction(
   return removed
     ? { error: null, removedAt: Date.now() }
     : { error: '这条记录已经不在了。', removedAt: 0 }
+}
+
+/**
+ * 改一条已保存的运动记录：时长（有氧）或逐组重量次数（力量）。
+ *
+ * 与保存共用 readWorkout，消耗同样由服务端重算。成功与保存一样跳回首页，
+ * 在那里看到改过的数字。
+ */
+export async function updateWorkoutAction(
+  _prev: UpdateState,
+  formData: FormData,
+): Promise<UpdateState> {
+  const db = getDb()
+  const user = await requireUser(db)
+
+  const entryId = String(formData.get('entryId') ?? '')
+  if (entryId === '') return { error: '没有指定要修改的记录。' }
+
+  const read = readWorkout(formData)
+  if ('error' in read) return { error: read.error }
+
+  const updated = await updateExerciseEntry(db, user.id, entryId, read.entry)
+
+  if (!updated) return { error: '这条记录已经不在了。' }
+
+  revalidatePath('/', 'layout')
+  redirect('/')
 }

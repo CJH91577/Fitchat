@@ -16,6 +16,24 @@ vi.mock('@/lib/auth/cookie', async () => (await import('@/tests/auth-cookie-mock
 // 页面级测试才不随跑测试的星期几而变。
 vi.mock('@/lib/data/today', () => ({ today: () => '2026-10-15' }))
 
+// 编辑的提交内容要能断言：把三个 action 换成 spy，提交时收到同一个 FormData。
+// 泛型写的是 action 的真实签名——实现不接参数，但 mock.calls 的元组类型要靠它。
+const actions = vi.hoisted(() => ({
+  saveWorkoutAction: vi.fn<
+    (prev: { error: string | null }, formData: FormData) => Promise<{ error: string | null }>
+  >(async () => ({ error: null })),
+  deleteWorkoutAction: vi.fn<
+    (
+      prev: { error: string | null; removedAt: number },
+      formData: FormData,
+    ) => Promise<{ error: string | null; removedAt: number }>
+  >(async () => ({ error: null, removedAt: 0 })),
+  updateWorkoutAction: vi.fn<
+    (prev: { error: string | null }, formData: FormData) => Promise<{ error: string | null }>
+  >(async () => ({ error: null })),
+}))
+vi.mock('./actions', () => actions)
+
 setupSeededDatabase()
 
 const PLAN: PlanHint = {
@@ -24,7 +42,28 @@ const PLAN: PlanHint = {
 }
 
 const ENTRIES: TodayExercise[] = [
-  { id: 'x1', kind: 'cardio', name: '慢跑', minutes: 30, setCount: 0, caloriesBurned: 300 },
+  {
+    id: 'x1',
+    kind: 'cardio',
+    name: '慢跑',
+    minutes: 30,
+    setCount: 0,
+    sets: [],
+    caloriesBurned: 300,
+  },
+  {
+    id: 'x2',
+    kind: 'strength',
+    name: '卧推',
+    minutes: null,
+    setCount: 3,
+    sets: [
+      { reps: 8, weightKg: 60 },
+      { reps: 8, weightKg: 62.5 },
+      { reps: 6, weightKg: 65 },
+    ],
+    caloriesBurned: 170,
+  },
 ]
 
 function renderForm(plan: PlanHint | null = null, entries: TodayExercise[] = []) {
@@ -150,6 +189,62 @@ describe('添加运动页', () => {
     expect(screen.getByText('今天计划是休息。')).toBeInTheDocument()
     expect(screen.queryByText(/今天该练/)).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /组 ×/ })).not.toBeInTheDocument()
+  })
+
+  it('点「编辑」把有氧记录预填进表单，按钮变成「保存修改」', async () => {
+    const user = userEvent.setup()
+    renderForm(null, ENTRIES)
+
+    await user.click(screen.getByRole('button', { name: '编辑慢跑' }))
+
+    expect(screen.getByPlaceholderText(/运动名称/)).toHaveValue('慢跑')
+    expect(screen.getByLabelText('时长（分钟）')).toHaveValue('30')
+    expect(screen.getByRole('button', { name: '保存修改' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '取消修改' })).toBeInTheDocument()
+  })
+
+  it('点「编辑」把力量记录的每一组都预填回来', async () => {
+    const user = userEvent.setup()
+    renderForm(null, ENTRIES)
+
+    await user.click(screen.getByRole('button', { name: '编辑卧推' }))
+
+    expect(screen.getByPlaceholderText(/动作名称/)).toHaveValue('卧推')
+    expect(screen.getByLabelText('第 1 组重量')).toHaveValue('60')
+    expect(screen.getByLabelText('第 1 组次数')).toHaveValue('8')
+    expect(screen.getByLabelText('第 3 组重量')).toHaveValue('65')
+    expect(screen.getByLabelText('第 3 组次数')).toHaveValue('6')
+  })
+
+  it('保存修改提交的是 entryId 与改过的数值，千卡由服务端重算', async () => {
+    const user = userEvent.setup()
+    renderForm(null, ENTRIES)
+
+    await user.click(screen.getByRole('button', { name: '编辑慢跑' }))
+    const minutes = screen.getByLabelText('时长（分钟）')
+    await user.clear(minutes)
+    await user.type(minutes, '45')
+    await user.click(screen.getByRole('button', { name: '保存修改' }))
+
+    expect(actions.updateWorkoutAction).toHaveBeenCalled()
+    const call = actions.updateWorkoutAction.mock.calls[0]
+    const form = call[1] as FormData
+    expect(form.get('entryId')).toBe('x1')
+    expect(form.get('kind')).toBe('cardio')
+    expect(form.get('minutes')).toBe('45')
+    // 表单里没有 calories 之类的字段：消耗由服务端重算
+    expect([...form.keys()]).not.toContain('calories')
+  })
+
+  it('取消修改退出编辑态，表单回到新记一条', async () => {
+    const user = userEvent.setup()
+    renderForm(null, ENTRIES)
+
+    await user.click(screen.getByRole('button', { name: '编辑慢跑' }))
+    await user.click(screen.getByRole('button', { name: '取消修改' }))
+
+    expect(screen.getByRole('button', { name: '保存' })).toBeInTheDocument()
+    expect(screen.getByPlaceholderText(/运动名称/)).toHaveValue('')
   })
 })
 

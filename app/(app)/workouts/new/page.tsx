@@ -41,6 +41,7 @@ export default async function NewWorkout() {
     name: exercise.name,
     minutes: exercise.minutes ?? null,
     setCount: exercise.sets?.length ?? 0,
+    sets: exercise.sets ?? [],
     caloriesBurned: exercise.caloriesBurned,
   }))
 

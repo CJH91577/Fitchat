@@ -233,3 +233,27 @@
   opacity: 0.4;
   cursor: default;
 }
+
+/* 编辑按钮：把这条预填回表单，在「确认条目」里改克数 */
+.edit {
+  padding: 6px 10px;
+  border: 1px solid var(--border-hairline);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+/* 编辑态里的「取消修改」：比主按钮弱一档 */
+.secondaryButton {
+  padding: 11px;
+  border: 1px dashed var(--axis);
+  border-radius: var(--radius-tile);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}

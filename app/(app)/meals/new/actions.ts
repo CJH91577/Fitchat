@@ -8,8 +8,8 @@ import { today } from '@/lib/data/today'
 import type { MealSlot } from '@/lib/data/types'
 import { foodsByIds } from '@/lib/db/queries'
 import { getDb } from '@/lib/db/runtime'
-import { addFoodEntries, deleteFoodEntry } from '@/lib/db/writes'
-import type { DeleteState, SaveState } from './types'
+import { addFoodEntries, deleteFoodEntry, updateFoodEntry } from '@/lib/db/writes'
+import type { DeleteState, SaveState, UpdateState } from './types'
 
 /**
  * 记录饮食的写入路径。
@@ -124,4 +124,58 @@ export async function deleteMealEntryAction(
   return removed
     ? { error: null, removedAt: Date.now() }
     : { error: '这条记录已经不在了。', removedAt: 0 }
+}
+
+/**
+ * 改一条已保存记录的克数。
+ *
+ * 与保存同一个规矩：客户端只报「改哪条、改成多少克」，营养值由服务端
+ * 按食物库与新的克数重算——就算有人手写请求也编不了热量。食物 id 也一并
+ * 上报（编辑态预填自那条记录本身），服务端仍然按库里的数值重算。
+ * 成功与保存一样跳回首页，在那里看到改过的数字。
+ */
+export async function updateMealEntryAction(
+  _prev: UpdateState,
+  formData: FormData,
+): Promise<UpdateState> {
+  const db = getDb()
+  const user = await requireUser(db)
+
+  const entryId = String(formData.get('entryId') ?? '')
+  if (entryId === '') return { error: '没有指定要修改的记录。' }
+
+  const grams = Number(formData.get('grams'))
+  if (!Number.isFinite(grams) || grams <= 0 || grams > MAX_GRAMS) {
+    return { error: '克数请填 1–5000 之间的数。' }
+  }
+
+  const foodId = String(formData.get('foodId') ?? '')
+  const foods = await foodsByIds(db, [foodId])
+  const food = foods[0]
+  if (!food) return { error: '有食物已经不在食物库里了，请重新选择。' }
+
+  const updated = await updateFoodEntry(db, user.id, entryId, {
+    foodId: food.id,
+    name: food.name,
+    grams: Math.round(grams),
+    // 与保存同一套口径：种子食物库里的标 curated，用户自建的标 user
+    source: food.id.startsWith('food-') ? ('curated' as const) : ('user' as const),
+    ...nutritionFor(
+      {
+        id: food.id,
+        name: food.name,
+        perGrams: food.perGrams,
+        calories: food.calories,
+        protein: food.protein,
+        carbs: food.carbs,
+        fat: food.fat,
+      },
+      Math.round(grams),
+    ),
+  })
+
+  if (!updated) return { error: '这条记录已经不在了。' }
+
+  revalidatePath('/', 'layout')
+  redirect('/')
 }

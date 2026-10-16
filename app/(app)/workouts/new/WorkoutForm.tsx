@@ -3,8 +3,14 @@
 import { useRouter } from 'next/navigation'
 import { useActionState, useEffect, useRef, useState } from 'react'
 import { INTENSITY_LABEL, type Intensity, estimateCardioCalories, estimateStrengthCalories } from '@/lib/data/workout'
-import { deleteWorkoutAction, saveWorkoutAction } from './actions'
-import { EMPTY_DELETE_STATE, EMPTY_SAVE_STATE, type PlanHint, type TodayExercise } from './types'
+import { deleteWorkoutAction, saveWorkoutAction, updateWorkoutAction } from './actions'
+import {
+  EMPTY_DELETE_STATE,
+  EMPTY_SAVE_STATE,
+  EMPTY_UPDATE_STATE,
+  type PlanHint,
+  type TodayExercise,
+} from './types'
 import styles from './new.module.css'
 
 type Mode = 'cardio' | 'strength'
@@ -40,10 +46,39 @@ export default function WorkoutForm({
     deleteWorkoutAction,
     EMPTY_DELETE_STATE,
   )
+  const [updateState, updateEntry, updating] = useActionState(
+    updateWorkoutAction,
+    EMPTY_UPDATE_STATE,
+  )
+
+  // 正在编辑的那条记录；null = 表单在「新记一条」模式
+  const [editingId, setEditingId] = useState<string | null>(null)
 
   useEffect(() => {
     if (deleteState.removedAt > 0) router.refresh()
   }, [deleteState.removedAt, router])
+
+  // 编辑保存成功后直接跳回首页（与保存同一路径），所以这里不需要
+  // 在 effect 里重置任何状态——组件在跳转后自然卸载。
+
+  /** 把一条已保存的记录预填进表单：改时长或逐组重量次数，保存即更新 */
+  function startEdit(entry: TodayExercise) {
+    setEditingId(entry.id)
+    setName(entry.name)
+    setMode(entry.kind)
+    if (entry.kind === 'cardio') {
+      setMinutes(String(entry.minutes ?? 30))
+      setIntensity('moderate')
+    } else {
+      setSets(
+        entry.sets.map((set, index) => ({
+          id: index + 1,
+          weightKg: String(set.weightKg),
+          reps: String(set.reps),
+        })),
+      )
+    }
+  }
 
   const addSet = () =>
     setSets((previous) => [...previous, { id: nextId.current++, weightKg: '', reps: '' }])
@@ -84,7 +119,7 @@ export default function WorkoutForm({
         ))}
       </div>
 
-      {plan !== null && plan.items.length > 0 && (
+      {plan !== null && plan.items.length > 0 && editingId === null && (
         <div className={styles.suggestions}>
           <p className={styles.hint}>今天该练 · {plan.theme}（点一下预填，记录的是实际完成的）</p>
           {plan.items.map((item) => (
@@ -113,7 +148,8 @@ export default function WorkoutForm({
         <p className={styles.hint}>今天计划是{plan.theme}。</p>
       )}
 
-      <form action={save} className={styles.form}>
+      <form action={editingId !== null ? updateEntry : save} className={styles.form}>
+        {editingId !== null && <input type="hidden" name="entryId" value={editingId} />}
         <input type="hidden" name="kind" value={mode} />
 
         <input
@@ -197,11 +233,40 @@ export default function WorkoutForm({
           预计消耗约 <span className="num-tabular">{estimate}</span> 千卡——粗估，真实消耗还跟体重与心率有关。
         </p>
 
-        {saveState.error !== null && <p className={styles.error}>{saveState.error}</p>}
+        {editingId === null && saveState.error !== null && (
+          <p className={styles.error}>{saveState.error}</p>
+        )}
+        {editingId !== null && updateState.error !== null && (
+          <p className={styles.error}>{updateState.error}</p>
+        )}
 
-        <button type="submit" className={styles.primaryButton} disabled={saving || !canSave}>
-          {saving ? '正在保存…' : '保存'}
+        <button
+          type="submit"
+          className={styles.primaryButton}
+          disabled={(editingId !== null ? updating : saving) || !canSave}
+        >
+          {editingId !== null
+            ? updating
+              ? '正在保存…'
+              : '保存修改'
+            : saving
+              ? '正在保存…'
+              : '保存'}
         </button>
+        {editingId !== null && (
+          <button
+            type="button"
+            className={styles.secondaryButton}
+            onClick={() => {
+              setEditingId(null)
+              setName('')
+              setMinutes('30')
+              setSets([{ id: 1, weightKg: '60', reps: '10' }])
+            }}
+          >
+            取消修改
+          </button>
+        )}
       </form>
 
       <section className={styles.entries}>
@@ -218,6 +283,14 @@ export default function WorkoutForm({
                   {entry.kind === 'cardio' ? `${entry.minutes} 分钟` : `${entry.setCount} 组`} ·{' '}
                   {entry.caloriesBurned} 千卡
                 </span>
+                <button
+                  type="button"
+                  className={styles.edit}
+                  aria-label={`编辑${entry.name}`}
+                  onClick={() => startEdit(entry)}
+                >
+                  编辑
+                </button>
                 <form action={removeEntry}>
                   <input type="hidden" name="entryId" value={entry.id} />
                   <button

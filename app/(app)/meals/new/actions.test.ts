@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { revalidatePath } from 'next/cache'
 import { nutritionFor } from '@/lib/data/meal-parser'
 import { today } from '@/lib/data/today'
 import { DEMO_USER_ID } from '@/lib/db/demo'
@@ -6,7 +7,7 @@ import { allFoods, dayLogFor, userById } from '@/lib/db/queries'
 import { getDb } from '@/lib/db/runtime'
 import { foodEntries, users } from '@/lib/db/schema'
 import { addFoodEntries } from '@/lib/db/writes'
-import { deleteMealEntryAction, saveMealAction } from './actions'
+import { deleteMealEntryAction, saveMealAction, updateMealEntryAction } from './actions'
 import { redirectTarget } from '@/tests/next-navigation-mock'
 import { setupSeededDatabase } from '@/tests/seeded-db'
 
@@ -14,10 +15,10 @@ import { setupSeededDatabase } from '@/tests/seeded-db'
  * 记录饮食的写入路径。
  *
  * 这里验的是「存进去的东西对不对」：热量必须由服务端按食物库重算（客户端传的
- * 数字一个都不算），删除必须只认自己的记录。
+ * 数字一个都不算），删除与修改必须只认自己的记录。
  */
 
-vi.mock('next/cache', () => ({ revalidatePath: () => {} }))
+vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 vi.mock('next/navigation', async () => {
   const { redirectMock } = await import('@/tests/next-navigation-mock')
   return { redirect: redirectMock }
@@ -190,5 +191,142 @@ describe('删除一条记录', () => {
   it('不指定 id 时说清楚', async () => {
     const state = await deleteMealEntryAction({ error: null, removedAt: 0 }, formData({}))
     expect(state.error).toMatch(/没有指定/)
+  })
+})
+
+describe('修改一条记录', () => {
+  it('改克数后营养值由服务端按食物库重算，并让首页/日历跟着变', async () => {
+    const egg = (await allFoods(db())).find((food) => food.name === '鸡蛋')
+    expect(egg).toBeTruthy()
+
+    // 先记一条，客户端塞的假热量必须被无视（保存路径的既有规矩）
+    try {
+      await saveMealAction(
+        { error: null },
+        formData({
+          slot: 'breakfast',
+          items: JSON.stringify([{ foodId: egg!.id, grams: 100, calories: 99999 }]),
+        }),
+      )
+      throw new Error('本该跳到首页')
+    } catch (error) {
+      expect(redirectTarget(error)).toBe('/')
+    }
+
+    const saved = (await demoDay()).foods.find((food) => food.name === '鸡蛋' && food.grams === 100)
+    expect(saved).toBeTruthy()
+
+    vi.mocked(revalidatePath).mockClear()
+    try {
+      await updateMealEntryAction(
+        { error: null },
+        formData({ entryId: saved!.id, foodId: egg!.id, grams: '250' }),
+      )
+      throw new Error('本该跳到首页')
+    } catch (error) {
+      expect(redirectTarget(error)).toBe('/')
+    }
+
+    const updated = (await demoDay()).foods.find((food) => food.id === saved!.id)
+    expect(updated?.grams).toBe(250)
+
+    // 营养值是「食物库 × 新克数」的服务端重算，不是按比例缩放客户端数字
+    const expected = nutritionFor(
+      {
+        id: egg!.id,
+        name: egg!.name,
+        perGrams: egg!.perGrams,
+        calories: egg!.calories,
+        protein: egg!.protein,
+        carbs: egg!.carbs,
+        fat: egg!.fat,
+      },
+      250,
+    )
+    expect(updated?.totals.calories).toBe(expected.calories)
+    expect(updated?.totals.protein).toBe(expected.protein)
+    expect(updated?.totals.calories).not.toBe(99999)
+
+    // 首页、某日详情、日历读的是同一份数据——改完它们的缓存必须作废
+    expect(vi.mocked(revalidatePath)).toHaveBeenCalledWith('/', 'layout')
+  })
+
+  it('只能改自己的：别人的记录改不动，也不报成功', async () => {
+    const now = new Date()
+    await db()
+      .insert(users)
+      .values({
+        id: 'food-rival',
+        email: 'food-rival@fitchat.local',
+        passwordHash: null,
+        heightCm: null,
+        age: null,
+        sex: null,
+        startedAt: '2026-01-01',
+        timezone: 'Asia/Shanghai',
+        createdAt: now,
+      })
+      .run()
+    await addFoodEntries(
+      db(),
+      'food-rival',
+      today(),
+      'lunch',
+      [
+        {
+          foodId: null,
+          name: '别人的饭',
+          grams: 100,
+          source: 'user',
+          calories: 100,
+          protein: 1,
+          carbs: 1,
+          fat: 1,
+        },
+      ],
+      now,
+    )
+    const theirs = (await db().select().from(foodEntries).all()).find(
+      (row) => row.userId === 'food-rival',
+    )
+    expect(theirs).toBeTruthy()
+
+    const food = (await allFoods(db()))[0]
+    const state = await updateMealEntryAction(
+      { error: null },
+      formData({ entryId: theirs!.id, foodId: food.id, grams: '500' }),
+    )
+    expect(state.error).toMatch(/已经不在了/)
+
+    // 那行一个字段都没动
+    const after = (await db().select().from(foodEntries).all()).find(
+      (row) => row.id === theirs!.id,
+    )
+    expect(after?.grams).toBe(100)
+    expect(after?.name).toBe('别人的饭')
+  })
+
+  it('食物不在库里、克数离谱时都明确拒绝', async () => {
+    const saved = (await demoDay()).foods[0]
+    expect(saved?.id).toBeTruthy()
+    const row = (await db().select().from(foodEntries).all()).find(
+      (candidate) => candidate.id === saved.id,
+    )
+    expect(row).toBeTruthy()
+
+    const noFood = await updateMealEntryAction(
+      { error: null },
+      formData({ entryId: saved.id, foodId: '不存在', grams: '100' }),
+    )
+    expect(noFood.error).toMatch(/不在食物库里/)
+
+    const badGrams = await updateMealEntryAction(
+      { error: null },
+      formData({ entryId: saved.id, foodId: row!.foodId ?? '', grams: '0' }),
+    )
+    expect(badGrams.error).toMatch(/克数/)
+
+    const noId = await updateMealEntryAction({ error: null }, formData({}))
+    expect(noId.error).toMatch(/没有指定/)
   })
 })
