@@ -1,35 +1,45 @@
 'use client'
 
 import { useActionState, useState } from 'react'
-import { registerAction, signInAction, signInAsDemoAction } from '@/lib/auth/actions'
+import {
+  registerAction,
+  resetPasswordAction,
+  signInAction,
+  signInAsDemoAction,
+} from '@/lib/auth/actions'
 import { EMPTY_FORM_STATE } from '@/lib/auth/form-state'
 import styles from './login.module.css'
 
 /**
- * 登录 / 注册表单。
+ * 登录 / 注册 / 找回口令表单。
  *
- * 客户端组件，因为它要切换「登录 / 注册」两种形态并显示服务端返回的错误；
+ * 客户端组件，因为它要切换三种形态并显示服务端返回的错误；
  * 提交本身走 Server Action，校验、建会话与跳转都在服务端。
  *
- * 但**没有 JS 时这两个表单提交不了**：客户端组件渲染出来的表单不会带上 Next
+ * 但**没有 JS 时这些表单提交不了**：客户端组件渲染出来的表单不会带上 Next
  * 用于渐进增强的那个 action id 字段（线上实测：HTML 里搜不到 `$ACTION_ID_`，
  * `action` 属性是空串）。所以这里不能写「JS 没跑也能提交」——那是服务端组件里
- * 直接写 `<form action={serverAction}>` 才有的待遇，而这个表单要切换两种形态。
+ * 直接写 `<form action={serverAction}>` 才有的待遇，而这个表单要切换形态。
  */
 
-type Mode = 'signin' | 'register'
+type Mode = 'signin' | 'register' | 'reset'
 
 export default function LoginForm() {
   const [mode, setMode] = useState<Mode>('signin')
 
-  // 两种形态各有自己的状态：切回来时上一次的错误不该跟着回来
+  // 各形态各有自己的状态：切回来时上一次的错误不该跟着回来
   const [signInState, signInSubmit, signInPending] = useActionState(signInAction, EMPTY_FORM_STATE)
   const [registerState, registerSubmit, registerPending] = useActionState(
     registerAction,
     EMPTY_FORM_STATE,
   )
+  const [resetState, resetSubmit, resetPending] = useActionState(
+    resetPasswordAction,
+    EMPTY_FORM_STATE,
+  )
 
-  const pending = mode === 'signin' ? signInPending : registerPending
+  const pending =
+    mode === 'signin' ? signInPending : mode === 'register' ? registerPending : resetPending
 
   return (
     <main className={styles.page}>
@@ -55,7 +65,48 @@ export default function LoginForm() {
         </button>
       </div>
 
-      {mode === 'signin' ? (
+      {mode === 'reset' ? (
+        <form action={resetSubmit} className={styles.form}>
+          <p className={styles.hint}>
+            没有邮件服务，重置码由管理员生成（`npm run reset-password`），拿到码后在这里设置新口令。
+          </p>
+          <input
+            className={styles.input}
+            name="email"
+            type="email"
+            autoComplete="email"
+            placeholder="邮箱"
+            required
+          />
+          <input
+            className={styles.input}
+            name="code"
+            autoComplete="off"
+            placeholder="重置码"
+            required
+          />
+          <input
+            className={styles.input}
+            name="password"
+            type="password"
+            autoComplete="new-password"
+            placeholder="新口令（至少 8 位）"
+            minLength={8}
+            required
+          />
+          {resetState.error !== null && (
+            <p className={styles.error} role="alert">
+              {resetState.error}
+            </p>
+          )}
+          <button className={styles.primaryButton} type="submit" disabled={pending}>
+            {pending ? '正在设置…' : '设置新口令'}
+          </button>
+          <button type="button" className={styles.forgot} onClick={() => setMode('signin')}>
+            返回登录
+          </button>
+        </form>
+      ) : mode === 'signin' ? (
         <form action={signInSubmit} className={styles.form}>
           <input
             className={styles.input}
@@ -80,6 +131,9 @@ export default function LoginForm() {
           )}
           <button className={styles.primaryButton} type="submit" disabled={pending}>
             {pending ? '正在进入…' : '进入'}
+          </button>
+          <button type="button" className={styles.forgot} onClick={() => setMode('reset')}>
+            忘记口令？
           </button>
         </form>
       ) : (

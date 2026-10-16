@@ -52,6 +52,18 @@
   text-align: center;
 }
 
+/* 「忘记口令？」/「返回登录」：形态切换的弱入口，不是主按钮 */
+.forgot {
+  margin-top: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 13px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 /* 登录 / 注册两个形态的切换。用 aria-pressed 表达选中，与首次引导页一致 */
 .tabs {
   display: flex;

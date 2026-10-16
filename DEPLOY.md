@@ -98,6 +98,19 @@ docker compose exec app node -e "const D=require('better-sqlite3');const db=new 
 
 - 想改演示账号的口令：设环境变量 `DEMO_PASSWORD` 后**删库重建**（口令只在建库时写入；已有库里若口令非空，重启不会覆盖它，这是有意的）。
 
+### 口令找回（没有邮件服务）
+
+忘记口令时由管理员生成一次性重置码（24 小时有效，用一次作废）。宿主机上装好 Node 后在源码目录里跑（把库路径指到数据卷上的那份）：
+
+```bash
+cd /home/ubuntu/fitchat   # 源码目录
+DATABASE_PATH=/home/ubuntu/fitchat/data/fitchat.db npm run reset-password -- --email 用户邮箱
+```
+
+把打印出来的码交给用户本人（聊天/电话均可），用户在登录页点「忘记口令」，输入邮箱 + 码 + 新口令即可；成功后直接进入，旧口令作废。
+
+登录/注册的失败限流：同一 IP 或邮箱 15 分钟内失败 10 次会被拒到窗口结束（返回「尝试次数过多」），计数在库里、重启不失效。演示入口不受影响。
+
 ## 五、更新代码
 
 ```bash

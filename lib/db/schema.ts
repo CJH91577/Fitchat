@@ -83,6 +83,23 @@ export const loginAttempts = sqliteTable('login_attempts', {
   count: integer('count').notNull(),
 })
 
+/**
+ * 口令重置码（见 lib/auth/reset.ts）。
+ *
+ * 没有邮件服务，所以流程是：管理员在服务器上跑 CLI 生成一次性重置码
+ * 交给用户（见 scripts/reset-password.ts），用户在登录页用它设置新口令。
+ * 码绑定用户、24 小时过期、用一次作废；没有密保问题那类可被社工的通道。
+ */
+export const passwordResetCodes = sqliteTable('password_reset_codes', {
+  code: text('code').primaryKey(),
+  userId: text('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull(),
+  usedAt: integer('used_at', { mode: 'timestamp_ms' }),
+  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+})
+
 // ---------------------------------------------------------------- 目标
 
 /**

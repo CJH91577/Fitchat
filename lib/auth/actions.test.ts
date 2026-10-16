@@ -6,7 +6,8 @@ import { getDb } from '../db/runtime'
 import { inviteCodeFor } from '../db/queries'
 import { sessions } from '../db/schema'
 import { createInviteCodes } from '../db/writes'
-import { registerAction, signInAction, signInAsDemoAction, signOutAction } from './actions'
+import { registerAction, resetPasswordAction, signInAction, signInAsDemoAction, signOutAction } from './actions'
+import { createResetCode } from './reset'
 import { redirectTarget } from '@/tests/next-navigation-mock'
 import { hashSessionToken } from './session'
 import { setupSeededDatabase } from '@/tests/seeded-db'
@@ -182,6 +183,37 @@ describe('注册', () => {
     )
 
     expect(state).toEqual({ error: '邀请码不正确。' })
+    expect(cookie.writeSessionCookie).not.toHaveBeenCalled()
+  })
+})
+
+describe('口令找回', () => {
+  it('正确的重置码：设新口令、写 Cookie、直接进入首页', async () => {
+    const created = await createResetCode(db(), DEMO_USER_EMAIL)
+    if (!created.ok) throw new Error('应该能生成重置码')
+    cookie.writeSessionCookie.mockClear()
+
+    await expectRedirect(
+      () =>
+        resetPasswordAction(
+          { error: null },
+          formData({ email: DEMO_USER_EMAIL, code: created.code, password: 'a-reset-password' }),
+        ),
+      '/',
+    )
+
+    expect(await sessionRowForWrittenToken()).toMatchObject({ userId: DEMO_USER_ID })
+  })
+
+  it('重置码不对：一句明确的话，不写 Cookie', async () => {
+    cookie.writeSessionCookie.mockClear()
+
+    const state = await resetPasswordAction(
+      { error: null },
+      formData({ email: DEMO_USER_EMAIL, code: 'NOT-A-CODE', password: 'a-reset-password' }),
+    )
+
+    expect(state).toEqual({ error: '重置码不正确或已过期。' })
     expect(cookie.writeSessionCookie).not.toHaveBeenCalled()
   })
 })

@@ -9,6 +9,7 @@ import { clearSessionCookie, readSessionToken, writeSessionCookie } from './cook
 import type { FormState } from './form-state'
 import { clientIp } from './ip'
 import { attemptKey } from './rate-limit'
+import { resetPassword } from './reset'
 import { createSession, deleteExpiredSessions, deleteSession } from './session'
 
 /**
@@ -74,6 +75,31 @@ export async function signInAsDemoAction(): Promise<void> {
   if (!user) throw new Error(`库里没有演示账号（${DEMO_USER_ID}）。先运行 npm run db:seed。`)
 
   const session = await createSession(db, user.id)
+  await writeSessionCookie(session.token, session.expiresAt)
+  redirect('/')
+}
+
+/**
+ * 用管理员发的重置码设置新口令（登录页的「忘记口令」）。
+ *
+ * 成功后直接建会话登录：用户刚证明了自己是谁（手里有码），
+ * 再让人家输一遍新口令登一次是多余的仪式。
+ */
+export async function resetPasswordAction(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const db = getDb()
+
+  const result = await resetPassword(
+    db,
+    String(formData.get('email') ?? ''),
+    String(formData.get('code') ?? ''),
+    String(formData.get('password') ?? ''),
+  )
+  if (!result.ok) return { error: result.message }
+
+  const session = await createSession(db, result.userId)
   await writeSessionCookie(session.token, session.expiresAt)
   redirect('/')
 }
