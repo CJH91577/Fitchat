@@ -1,9 +1,9 @@
 import { today } from '@/lib/data/today'
-import { WEEKDAY_LABELS, weekdayOf } from '@/lib/data/dates'
+import { weekdayOf } from '@/lib/data/dates'
 import { planFor } from '@/lib/db/queries'
 import { requireUser } from '@/lib/auth/current-user'
 import { getDb } from '@/lib/db/runtime'
-import styles from './plan.module.css'
+import PlanEditor from './PlanEditor'
 
 // 每次请求都重新渲染：数据来自数据库，且「今天」要跟着真实日期走。
 // 不加这一行，Next 会在构建时预渲染这些页面——数据被冻住，日期也一并冻住。
@@ -17,39 +17,7 @@ export default async function Plan() {
   const plan = await planFor(db, user.id)
   const todayWeekday = weekdayOf(TODAY)
 
-  return (
-    <main className={styles.page}>
-      <h1 className={styles.title}>训练计划</h1>
-
-      <ul className={styles.days}>
-        {plan.map((day) => {
-          const isToday = day.weekday === todayWeekday
-          return (
-            <li key={day.weekday} className={`${styles.day} ${isToday ? styles.today : ''}`}>
-              <div className={styles.dayHead}>
-                <span className={styles.weekday}>{WEEKDAY_LABELS[day.weekday]}</span>
-                <span className={styles.theme}>{day.theme}</span>
-                {isToday && <span className={styles.todayTag}>今天</span>}
-              </div>
-
-              {day.items.length === 0 ? (
-                <p className={styles.rest}>休息</p>
-              ) : (
-                <ul className={styles.items}>
-                  {day.items.map((item) => (
-                    <li key={item.name} className={styles.item}>
-                      <span className={styles.itemName}>{item.name}</span>
-                      <span className={`${styles.itemMeta} num-tabular`}>
-                        {item.sets} 组 × {item.reps}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </li>
-          )
-        })}
-      </ul>
-    </main>
-  )
+  // key 是计划数据的序列化：保存成功后 router.refresh() 会让服务端重渲染，
+  // 数据一变整个编辑器重挂——浏览器里的编辑态随之退出，不需要手动重置。
+  return <PlanEditor key={JSON.stringify(plan)} plan={plan} todayWeekday={todayWeekday} />
 }

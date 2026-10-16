@@ -2,7 +2,18 @@ import { randomUUID } from 'node:crypto'
 import { and, eq, isNull } from 'drizzle-orm'
 import type { FoodSource, MealSlot } from '../data/types'
 import type { Db } from './index'
-import { exerciseEntries, foodEntries, foods, goals, inviteCodes, strengthSets, users, weightEntries } from './schema'
+import {
+  exerciseEntries,
+  foodEntries,
+  foods,
+  goals,
+  inviteCodes,
+  planDays,
+  planItems,
+  strengthSets,
+  users,
+  weightEntries,
+} from './schema'
 
 /**
  * 写路径。
@@ -403,6 +414,70 @@ export async function updateExerciseEntry(
     }
 
     return true
+  })
+}
+
+/**
+ * 写一天（weekday）的训练计划：主题与动作列表整体替换。
+ *
+ * (user_id, weekday) 有唯一索引，所以「改计划」就是覆盖这一天；
+ * 动作条目整组删掉重插，item_index 从 0 重新连续编号——编辑时删掉
+ * 中间一条不该在序号里留下空洞。全部在一个事务里：要么整份新计划
+ * 生效，要么什么都不变。
+ *
+ * 归属检查是结构性的：计划按 (user_id, weekday) 定位，用户改的
+ * 只能是自己的那一行。
+ */
+export async function savePlanDay(
+  db: Db,
+  userId: string,
+  input: {
+    /** 1 = 周一 … 7 = 周日，与 lib/data/dates.ts 的 weekdayOf 一致 */
+    weekday: number
+    theme: string
+    items: { name: string; sets: number; reps: string }[]
+  },
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    const existing = await tx
+      .select({ id: planDays.id })
+      .from(planDays)
+      .where(and(eq(planDays.userId, userId), eq(planDays.weekday, input.weekday)))
+      .get()
+
+    const dayId = existing?.id ?? randomUUID()
+
+    if (existing) {
+      await tx
+        .update(planDays)
+        .set({ theme: input.theme })
+        .where(and(eq(planDays.userId, userId), eq(planDays.weekday, input.weekday)))
+        .run()
+    } else {
+      await tx
+        .insert(planDays)
+        .values({ id: dayId, userId, weekday: input.weekday, theme: input.theme })
+        .run()
+    }
+
+    await tx.delete(planItems).where(eq(planItems.planDayId, dayId)).run()
+
+    if (input.items.length > 0) {
+      await tx
+        .insert(planItems)
+        .values(
+          input.items.map((item, index) => ({
+            id: randomUUID(),
+            planDayId: dayId,
+            // 条目序号从 0 开始且连续（字段名不用 order——那是 SQL 关键字）
+            itemIndex: index,
+            name: item.name,
+            sets: item.sets,
+            reps: item.reps,
+          })),
+        )
+        .run()
+    }
   })
 }
 

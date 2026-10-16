@@ -4,6 +4,9 @@ import { describe, it, expect, vi } from 'vitest'
 import NewWorkout from './page'
 import WorkoutForm from './WorkoutForm'
 import type { PlanHint, TodayExercise } from './types'
+import { DEMO_USER_ID } from '@/lib/db/demo'
+import { openLocalDb } from '@/lib/db/runtime'
+import { savePlanDay } from '@/lib/db/writes'
 import { setupSeededDatabase } from '@/tests/seeded-db'
 
 vi.mock('next/navigation', () => ({
@@ -253,5 +256,23 @@ describe('记录运动页（页面级：计划行要传下来）', () => {
     render(await NewWorkout())
     expect(screen.getByText('今天计划是休息。')).toBeInTheDocument()
     expect(screen.queryByText(/今天该练/)).not.toBeInTheDocument()
+  })
+
+  it('计划被改过后，预填反映新计划（不是构建时的那份旧表）', async () => {
+    // 把周四从「休息」改成训练日，直接走数据层（action 层在 plan/actions.test.ts 里测）
+    const path = process.env.DATABASE_PATH
+    if (!path) throw new Error('setupSeededDatabase() 应该已经指好库路径')
+    const edit = openLocalDb(path)
+    await savePlanDay(edit.db, DEMO_USER_ID, {
+      weekday: 4,
+      theme: '肩 + 核心',
+      items: [{ name: '推举', sets: 4, reps: '8' }],
+    })
+    edit.close()
+
+    render(await NewWorkout())
+    expect(screen.getByText(/今天该练 · 肩 \+ 核心/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /推举 · 4 组/ })).toBeInTheDocument()
+    expect(screen.queryByText('今天计划是休息。')).not.toBeInTheDocument()
   })
 })

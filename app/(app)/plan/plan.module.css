@@ -94,3 +94,126 @@
   color: var(--text-secondary);
   font-size: 13px;
 }
+
+/* 编辑态 */
+.editing {
+  border-color: var(--axis);
+}
+
+.themeInput,
+.itemNameInput,
+.itemSetsInput,
+.itemRepsInput {
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-tile);
+  background: var(--surface-card);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 14px;
+  padding: 8px 10px;
+}
+
+.themeInput {
+  flex: 1;
+  min-width: 0;
+}
+
+.itemNameInput {
+  flex: 1;
+  min-width: 0;
+}
+
+.itemSetsInput {
+  width: 48px;
+  text-align: right;
+}
+
+.itemRepsInput {
+  width: 108px;
+}
+
+.times {
+  color: var(--text-muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.remove {
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border-hairline);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 16px;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.addItem {
+  margin-top: 6px;
+  padding: 8px 12px;
+  border: 1px dashed var(--axis);
+  border-radius: var(--radius-tile);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.error {
+  margin: 10px 0 0;
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.save,
+.cancel {
+  padding: 9px 16px;
+  border-radius: var(--radius-tile);
+  font-family: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.save {
+  border: none;
+  background: var(--ring-calories);
+  color: #fff;
+}
+
+.save:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.cancel {
+  border: 1px solid var(--border-hairline);
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+/* 只读态里的「编辑」与今天的「去记录」入口 */
+.editButton {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 13px;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+}
+
+.recordLink {
+  color: var(--ring-calories);
+  font-size: 13px;
+  text-decoration: none;
+}
