@@ -185,6 +185,49 @@ export async function ensureFoodLibrary(db: Db, rows: FoodLibraryRow[]): Promise
   await db.insert(foods).values(rows).onConflictDoNothing().run()
 }
 
+export type UserFoodInput = {
+  name: string
+  /** 每 100 克的营养值（与 foods.per_grams = 100 对应） */
+  calories: number
+  protein: number
+  carbs: number
+  fat: number
+}
+
+export type CreateUserFoodResult = { ok: true; id: string } | { ok: false; reason: 'name-taken' }
+
+/**
+ * 用户自建一条食物（每 100 克营养值）。
+ *
+ * foods.name 有唯一索引，同名冲突**不是** 500：先查后插，命中就说
+ * 「名字被占了」——食物库里没有「两个同名不同值」的合法状态，
+ * 搜索时用户也没法分辨该选哪一个。单实例、低并发下先查后插的
+ * 窗口可以接受；真要并发起来，唯一索引也会兜底（报错而不是错数据）。
+ */
+export async function createUserFood(db: Db, input: UserFoodInput): Promise<CreateUserFoodResult> {
+  const taken = await db
+    .select({ id: foods.id })
+    .from(foods)
+    .where(eq(foods.name, input.name))
+    .get()
+  if (taken) return { ok: false, reason: 'name-taken' }
+
+  const id = randomUUID()
+  await db
+    .insert(foods)
+    .values({
+      id,
+      name: input.name,
+      perGrams: 100,
+      calories: input.calories,
+      protein: input.protein,
+      carbs: input.carbs,
+      fat: input.fat,
+    })
+    .run()
+  return { ok: true, id }
+}
+
 export type FoodEntryInput = {
   foodId: string | null
   name: string

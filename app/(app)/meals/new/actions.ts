@@ -8,8 +8,8 @@ import { today } from '@/lib/data/today'
 import type { MealSlot } from '@/lib/data/types'
 import { foodsByIds } from '@/lib/db/queries'
 import { getDb } from '@/lib/db/runtime'
-import { addFoodEntries, deleteFoodEntry, updateFoodEntry } from '@/lib/db/writes'
-import type { DeleteState, SaveState, UpdateState } from './types'
+import { addFoodEntries, createUserFood, deleteFoodEntry, updateFoodEntry } from '@/lib/db/writes'
+import type { DeleteState, NewFoodState, SaveState, UpdateState } from './types'
 
 /**
  * 记录饮食的写入路径。
@@ -178,4 +178,52 @@ export async function updateMealEntryAction(
 
   revalidatePath('/', 'layout')
   redirect('/')
+}
+
+/** 自建食物的营养值合理范围（每 100 克） */
+const MAX_FOOD_CALORIES = 900
+const MAX_FOOD_MACRO = 100
+
+/**
+ * 自建一条食物（每 100 克营养值），之后立刻能被搜索到。
+ *
+ * 与记录同一个规矩：数字由服务端收下前逐项验过。同名冲突不是 500：
+ * 返回明确的话，让用户去搜索里用现成的那条。
+ */
+export async function createUserFoodAction(
+  _prev: NewFoodState,
+  formData: FormData,
+): Promise<NewFoodState> {
+  const db = getDb()
+  // 自建食物不挂在某个用户名下（食物库是共享的），这里只要登录守卫
+  await requireUser(db)
+
+  const name = String(formData.get('name') ?? '').trim()
+  if (name === '' || name.length > 20) return { error: '名称请填 1–20 个字。', createdAt: 0 }
+
+  const calories = Number(formData.get('calories'))
+  const protein = Number(formData.get('protein'))
+  const carbs = Number(formData.get('carbs'))
+  const fat = Number(formData.get('fat'))
+  if (!Number.isFinite(calories) || calories < 1 || calories > MAX_FOOD_CALORIES) {
+    return { error: `热量请填 1–${MAX_FOOD_CALORIES} 千卡（每 100 克）。`, createdAt: 0 }
+  }
+  const macros = [protein, carbs, fat]
+  if (macros.some((value) => !Number.isFinite(value) || value < 0 || value > MAX_FOOD_MACRO)) {
+    return { error: `蛋白质、碳水、脂肪请各填 0–${MAX_FOOD_MACRO} 克（每 100 克）。`, createdAt: 0 }
+  }
+
+  const result = await createUserFood(db, {
+    name,
+    calories: Math.round(calories),
+    protein: Math.round(protein * 10) / 10,
+    carbs: Math.round(carbs * 10) / 10,
+    fat: Math.round(fat * 10) / 10,
+  })
+  if (!result.ok) {
+    return { error: `已经有叫「${name}」的食物了，直接搜索它就行。`, createdAt: 0 }
+  }
+
+  revalidatePath('/meals/new')
+  return { error: null, createdAt: Date.now() }
 }

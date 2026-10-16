@@ -7,7 +7,7 @@ import { allFoods, dayLogFor, userById } from '@/lib/db/queries'
 import { getDb } from '@/lib/db/runtime'
 import { foodEntries, users } from '@/lib/db/schema'
 import { addFoodEntries } from '@/lib/db/writes'
-import { deleteMealEntryAction, saveMealAction, updateMealEntryAction } from './actions'
+import { deleteMealEntryAction, saveMealAction, updateMealEntryAction, createUserFoodAction } from './actions'
 import { redirectTarget } from '@/tests/next-navigation-mock'
 import { setupSeededDatabase } from '@/tests/seeded-db'
 
@@ -328,5 +328,65 @@ describe('修改一条记录', () => {
 
     const noId = await updateMealEntryAction({ error: null }, formData({}))
     expect(noId.error).toMatch(/没有指定/)
+  })
+})
+
+describe('自建食物', () => {
+  it('录一条新的：进食物库（per_grams=100），立刻能用来记一餐', async () => {
+    const state = await createUserFoodAction(
+      { error: null, createdAt: 0 },
+      formData({ name: '螺蛳粉', calories: '280', protein: '8', carbs: '45', fat: '9' }),
+    )
+    expect(state.error).toBeNull()
+    expect(state.createdAt).toBeGreaterThan(0)
+
+    const created = (await allFoods(db())).find((food) => food.name === '螺蛳粉')
+    expect(created).toBeTruthy()
+    expect(created?.perGrams).toBe(100)
+    expect(created?.calories).toBe(280)
+    expect(created?.protein).toBe(8)
+
+    // 立刻能用它记一餐：来源标成 user（不是 curated）
+    try {
+      await saveMealAction(
+        { error: null },
+        formData({
+          slot: 'dinner',
+          items: JSON.stringify([{ foodId: created!.id, grams: 150 }]),
+        }),
+      )
+      throw new Error('本该跳到首页')
+    } catch (error) {
+      expect(redirectTarget(error)).toBe('/')
+    }
+
+    const day = await demoDay()
+    const saved = day.foods.find((food) => food.name === '螺蛳粉')
+    expect(saved?.source).toBe('user')
+    expect(saved?.grams).toBe(150)
+  })
+
+  it('同名冲突给明确提示，而不是 500', async () => {
+    const state = await createUserFoodAction(
+      { error: null, createdAt: 0 },
+      formData({ name: '鸡蛋', calories: '100', protein: '10', carbs: '1', fat: '1' }),
+    )
+    expect(state.error).toMatch(/已经有叫「鸡蛋」的食物了/)
+    expect(state.createdAt).toBe(0)
+  })
+
+  it('名称与营养值不合法时都拒绝', async () => {
+    const cases: { name: string; form: Record<string, string> }[] = [
+      { name: '名称为空', form: { name: '  ', calories: '100', protein: '1', carbs: '1', fat: '1' } },
+      { name: '名称过长', form: { name: 'x'.repeat(21), calories: '100', protein: '1', carbs: '1', fat: '1' } },
+      { name: '热量为 0', form: { name: '新食物', calories: '0', protein: '1', carbs: '1', fat: '1' } },
+      { name: '热量过大', form: { name: '新食物', calories: '9999', protein: '1', carbs: '1', fat: '1' } },
+      { name: '蛋白质为负', form: { name: '新食物', calories: '100', protein: '-1', carbs: '1', fat: '1' } },
+    ]
+
+    for (const { name, form } of cases) {
+      const state = await createUserFoodAction({ error: null, createdAt: 0 }, formData(form))
+      expect(state.error, name).not.toBeNull()
+    }
   })
 })

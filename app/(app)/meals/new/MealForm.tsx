@@ -5,9 +5,10 @@ import { useActionState, useEffect, useMemo, useState } from 'react'
 import AiBadge from '@/components/AiBadge'
 import { type FoodOption, nutritionFor, parseMealSentence } from '@/lib/data/meal-parser'
 import { MEAL_SLOT_LABEL, type MealSlot } from '@/lib/data/types'
-import { deleteMealEntryAction, saveMealAction, updateMealEntryAction } from './actions'
+import { createUserFoodAction, deleteMealEntryAction, saveMealAction, updateMealEntryAction } from './actions'
 import {
   EMPTY_DELETE_STATE,
+  EMPTY_NEW_FOOD_STATE,
   EMPTY_SAVE_STATE,
   EMPTY_UPDATE_STATE,
   type TodayEntry,
@@ -54,14 +55,28 @@ export default function MealForm({
     updateMealEntryAction,
     EMPTY_UPDATE_STATE,
   )
+  const [newFoodState, createFood, creatingFood] = useActionState(
+    createUserFoodAction,
+    EMPTY_NEW_FOOD_STATE,
+  )
 
   // 正在编辑的那条记录；null = 表单在「新记一餐」模式
   const [editingId, setEditingId] = useState<string | null>(null)
+
+  // 自建食物的表单：默认展开收起都不预填，点开时带上当前的搜索词
+  const [showNewFood, setShowNewFood] = useState(false)
+  const [newFoodName, setNewFoodName] = useState('')
 
   // 删掉一条之后让服务端重新渲染：列表由服务端查询得出，不在浏览器里自己猜一份
   useEffect(() => {
     if (deleteState.removedAt > 0) router.refresh()
   }, [deleteState.removedAt, router])
+
+  // 自建成功：拿新的食物列表（页面用 key 重挂表单，见 page.tsx——
+  // 展开态与草稿随之复位，不需要在这里手动重置状态）
+  useEffect(() => {
+    if (newFoodState.createdAt > 0) router.refresh()
+  }, [newFoodState.createdAt, router])
 
   // 编辑保存成功后直接跳回首页（与保存同一路径），所以这里不需要
   // 在 effect 里重置任何状态——组件在跳转后自然卸载。
@@ -161,6 +176,69 @@ export default function MealForm({
             </li>
           ))}
         </ul>
+      )}
+
+      {/* 搜不到就自己录一条：食物库是共享的，录完所有人都能搜到 */}
+      <button
+        type="button"
+        className={styles.secondaryButton}
+        onClick={() => {
+          setShowNewFood((previous) => !previous)
+          if (!showNewFood) setNewFoodName(query.trim())
+        }}
+      >
+        {showNewFood ? '收起' : '自己录一条新食物'}
+      </button>
+      {showNewFood && (
+        <form action={createFood} className={styles.newFoodForm}>
+          <p className={styles.hint}>营养值按每 100 克填，之后搜索就能找到。</p>
+          <input
+            className={styles.input}
+            name="name"
+            placeholder="名称（如：螺蛳粉）"
+            value={newFoodName}
+            onChange={(event) => setNewFoodName(event.target.value)}
+            required
+          />
+          <div className={styles.newFoodRow}>
+            <input
+              className={styles.newFoodInput}
+              name="calories"
+              inputMode="numeric"
+              aria-label="热量（千卡）"
+              placeholder="热量"
+              required
+            />
+            <input
+              className={styles.newFoodInput}
+              name="protein"
+              inputMode="decimal"
+              aria-label="蛋白质（克）"
+              placeholder="蛋白质"
+              required
+            />
+            <input
+              className={styles.newFoodInput}
+              name="carbs"
+              inputMode="decimal"
+              aria-label="碳水（克）"
+              placeholder="碳水"
+              required
+            />
+            <input
+              className={styles.newFoodInput}
+              name="fat"
+              inputMode="decimal"
+              aria-label="脂肪（克）"
+              placeholder="脂肪"
+              required
+            />
+          </div>
+          {newFoodState.error !== null && <p className={styles.error}>{newFoodState.error}</p>}
+          <button className={styles.primaryButton} type="submit" disabled={creatingFood}>
+            {creatingFood ? '正在保存…' : '保存到食物库'}
+          </button>
+        </form>
       )}
 
       <div className={styles.divider}>或者</div>

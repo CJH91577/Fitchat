@@ -257,3 +257,32 @@
   font-size: 14px;
   cursor: pointer;
 }
+
+/* 自建食物：一张小表单，四个营养值一排（窄屏换行） */
+.newFoodForm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-tile);
+}
+
+.newFoodRow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.newFoodInput {
+  flex: 1;
+  min-width: 72px;
+  padding: 9px 10px;
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-tile);
+  background: var(--surface-card);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 14px;
+}

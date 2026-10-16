@@ -41,5 +41,7 @@ export default async function NewMeal() {
     source: food.source,
   }))
 
-  return <MealForm foods={foods} entries={entries} />
+  // key 是食物库的序列化：自建食物成功后 router.refresh() 让服务端重渲染，
+  // 食物库一变整个表单重挂——自建表单的展开态与草稿随之复位，不需要手动重置。
+  return <MealForm key={JSON.stringify(foodRows)} foods={foods} entries={entries} />
 }

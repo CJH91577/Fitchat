@@ -38,3 +38,11 @@ export const EMPTY_DELETE_STATE: DeleteState = { error: null, removedAt: 0 }
 export type UpdateState = { error: string | null }
 
 export const EMPTY_UPDATE_STATE: UpdateState = { error: null }
+
+/**
+ * 自建食物成功不跳页：createdAt 让客户端知道「这次提交真的写进去了」，
+ * 然后 router.refresh() 拿新的食物列表（页面用 key 重挂表单，见 page.tsx）。
+ */
+export type NewFoodState = { error: string | null; createdAt: number }
+
+export const EMPTY_NEW_FOOD_STATE: NewFoodState = { error: null, createdAt: 0 }

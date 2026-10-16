@@ -10,7 +10,7 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ refresh: () => {} }),
 }))
 
-// 编辑的提交内容要能断言：把三个 action 换成 spy，提交时收到同一个 FormData。
+// 编辑与自建食物的提交内容要能断言：把 action 换成 spy，提交时收到同一个 FormData。
 // 泛型写的是 action 的真实签名——实现不接参数，但 mock.calls 的元组类型要靠它。
 const actions = vi.hoisted(() => ({
   saveMealAction: vi.fn<
@@ -25,6 +25,12 @@ const actions = vi.hoisted(() => ({
   updateMealEntryAction: vi.fn<
     (prev: { error: string | null }, formData: FormData) => Promise<{ error: string | null }>
   >(async () => ({ error: null })),
+  createUserFoodAction: vi.fn<
+    (
+      prev: { error: string | null; createdAt: number },
+      formData: FormData,
+    ) => Promise<{ error: string | null; createdAt: number }>
+  >(async () => ({ error: null, createdAt: 0 })),
 }))
 vi.mock('./actions', () => actions)
 
@@ -209,5 +215,39 @@ describe('添加饮食页', () => {
     // 草稿被清空：编辑表单与保存表单都不在了，回到「还没开始记」的状态
     expect(screen.queryByText('修改这条记录')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '保存到午餐' })).not.toBeInTheDocument()
+  })
+
+  it('点「自己录一条新食物」展开表单，名称预填当前搜索词', async () => {
+    const user = userEvent.setup()
+    renderForm()
+
+    await user.type(screen.getByPlaceholderText('搜索食物'), '螺蛳粉')
+    await user.click(screen.getByRole('button', { name: '自己录一条新食物' }))
+
+    expect(screen.getByPlaceholderText('名称（如：螺蛳粉）')).toHaveValue('螺蛳粉')
+    expect(screen.getByLabelText('热量（千卡）')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '保存到食物库' })).toHaveAttribute('type', 'submit')
+  })
+
+  it('自建食物提交的是名称与每 100 克营养值', async () => {
+    const user = userEvent.setup()
+    renderForm()
+
+    await user.click(screen.getByRole('button', { name: '自己录一条新食物' }))
+    await user.type(screen.getByPlaceholderText('名称（如：螺蛳粉）'), '螺蛳粉')
+    await user.type(screen.getByLabelText('热量（千卡）'), '280')
+    await user.type(screen.getByLabelText('蛋白质（克）'), '8')
+    await user.type(screen.getByLabelText('碳水（克）'), '45')
+    await user.type(screen.getByLabelText('脂肪（克）'), '9')
+    await user.click(screen.getByRole('button', { name: '保存到食物库' }))
+
+    expect(actions.createUserFoodAction).toHaveBeenCalled()
+    const call = actions.createUserFoodAction.mock.calls[0]
+    const form = call[1] as FormData
+    expect(form.get('name')).toBe('螺蛳粉')
+    expect(form.get('calories')).toBe('280')
+    expect(form.get('protein')).toBe('8')
+    expect(form.get('carbs')).toBe('45')
+    expect(form.get('fat')).toBe('9')
   })
 })
